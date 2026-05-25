@@ -4,7 +4,7 @@ This is a Model Context Protocol (MCP) server implementation for Xero. It provid
 
 ## Features
 
-- Xero OAuth2 authentication with custom connections
+- Xero OAuth2 Refresh Token authentication
 - Contact management
 - Chart of Accounts management
 - Invoice creation and management
@@ -13,8 +13,8 @@ This is a Model Context Protocol (MCP) server implementation for Xero. It provid
 ## Prerequisites
 
 - Node.js (v18 or higher)
-- npm or pnpm
-- A Xero developer account with API credentials
+- npm
+- A Xero developer account with a Web Application and a refresh token
 
 ## Docs and Links
 
@@ -36,33 +36,61 @@ NOTE: To use Payroll-specific queries, the region should be either NZ or UK.
 
 ### Authentication
 
-There are 2 modes of authentication supported in the Xero MCP server:
+This server uses **Refresh Token** mode. At startup it exchanges a stored refresh token for an access token, persists the rotated refresh token to a local file, and schedules proactive in-process token renewal — so the server stays authenticated indefinitely without any user interaction after the first run.
 
-#### 1. Custom Connections
+#### Step 1 — Create a Xero Web Application
 
-This is a better choice for testing and development which allows you to specify client id and secrets for a specific organisation.
-It is also the recommended approach if you are integrating this into 3rd party MCP clients such as Claude Desktop.
+1. Go to [https://developer.xero.com/app/manage](https://developer.xero.com/app/manage) and sign in.
+2. Click **New app**.
+3. Choose **Web app** as the app type.
+4. Fill in a name and any redirect URI (e.g. `https://localhost`). The redirect URI is only used during the one-time token acquisition step below.
+5. After saving, copy the **Client ID** and **Client Secret** — you will need these as env vars.
 
-##### Configuring your Xero Developer account
+#### Step 2 — Obtain an initial refresh token
 
-Set up a Custom Connection following these instructions: https://developer.xero.com/documentation/guides/oauth2/custom-connections/
+Use the [Xero API Explorer](https://api-explorer.xero.com) to obtain a refresh token for your Web Application:
 
-##### Required Scopes
+1. Navigate to [https://api-explorer.xero.com](https://api-explorer.xero.com).
+2. Click **Authorise** and enter your Client ID and Client Secret.
+3. Select the scopes you need (see [Required Scopes](#required-scopes) below).
+4. Complete the OAuth2 flow and authorise your Xero organisation.
+5. The API Explorer will display a **refresh token**. Copy it — this is your `XERO_REFRESH_TOKEN`.
 
-Custom connections require different scopes depending on when they were created. **All scopes in the relevant list must be added to your custom connection:**
+#### Step 3 — Configure environment variables
 
-| Custom Connection Created | Required Scopes |
-|---------------------------|-----------------|
-| Before Apr 29, 2026 | [SCOPES_V1](src/clients/xero-client.ts#L82-L90) (bundled permissions) |
-| From Apr 29, 2026 | [SCOPES_V2](src/clients/xero-client.ts#L93-L112) (granular permissions) |
+Copy `.env.example` to `.env` and fill in your values:
 
-> **Note:** The MCP server automatically tries V1 scopes first and falls back to V2 if needed.
-> 
-> You can override these by setting the `XERO_SCOPES` environment variable to a space-separated list of scopes.
+```
+XERO_CLIENT_ID=your_client_id_here
+XERO_CLIENT_SECRET=your_client_secret_here
+XERO_REFRESH_TOKEN=your_refresh_token_here
+```
 
-##### Integrating the MCP server with Claude Desktop
+The server will write the rotated refresh token to `~/.xero-mcp/refresh_token` after first startup. Subsequent starts use the file-stored token automatically, so you only need `XERO_REFRESH_TOKEN` set for the first run (or after a manual token rotation).
 
-To add the MCP server to Claude go to Settings > Developer > Edit config and add the following to your claude_desktop_config.json file:
+To use a custom token file location, set `XERO_TOKEN_FILE=/path/to/refresh_token`.
+
+> **Note:** Make sure the directory containing your token file exists before starting the server. The server will create the file but not the directory.
+
+#### Required Scopes
+
+When authorising in the API Explorer, request the scopes that match the Xero APIs you intend to use. A typical set:
+
+```
+accounting.transactions
+accounting.contacts
+accounting.settings
+accounting.reports.read
+payroll.settings
+payroll.employees
+payroll.timesheets
+```
+
+See the [Xero OAuth 2.0 Scopes documentation](https://developer.xero.com/documentation/guides/oauth2/scopes/) for the full list.
+
+#### Integrating the MCP server with Claude Desktop
+
+To add the MCP server to Claude go to Settings > Developer > Edit config and add the following to your `claude_desktop_config.json` file:
 
 ```json
 {
@@ -73,67 +101,16 @@ To add the MCP server to Claude go to Settings > Developer > Edit config and add
       "env": {
         "XERO_CLIENT_ID": "your_client_id_here",
         "XERO_CLIENT_SECRET": "your_client_secret_here",
-        "XERO_SCOPES": "accounting.invoices accounting.contacts accounting.settings"
+        "XERO_REFRESH_TOKEN": "your_refresh_token_here"
       }
     }
   }
 }
 ```
 
-The `XERO_SCOPES` variable is optional. If omitted, the default scopes listed above will be used.
+After first startup, the server writes the rotated refresh token to `~/.xero-mcp/refresh_token`. On subsequent starts `XERO_REFRESH_TOKEN` in the config is ignored in favour of the file-stored token, so you do not need to update the config after each token rotation.
 
 NOTE: If you are using [Node Version Manager](https://github.com/nvm-sh/nvm) `"command": "npx"` section change it to be the full path to the executable, ie: `your_home_directory/.nvm/versions/node/v22.14.0/bin/npx` on Mac / Linux or `"your_home_directory\\.nvm\\versions\\node\\v22.14.0\\bin\\npx"` on Windows
-
-#### 2. Bearer Token
-
-This is a better choice if you are to support multiple Xero accounts at runtime and allow the MCP client to execute an auth flow (such as PKCE) as required.
-In this case, use the following configuration:
-
-```json
-{
-  "mcpServers": {
-    "xero": {
-      "command": "npx",
-      "args": ["-y", "@xeroapi/xero-mcp-server@latest"],
-      "env": {
-        "XERO_CLIENT_BEARER_TOKEN": "your_bearer_token"
-      }
-    }
-  }
-}
-```
-
-NOTE: The `XERO_CLIENT_BEARER_TOKEN` will take precedence over the `XERO_CLIENT_ID` if defined.
-
-##### Required Scopes for Bearer Token
-
-When obtaining a bearer token, you must request the appropriate scopes. The scopes you request should be:
-
-> **Note:** Some scopes are being deprecated in favour of more granular scopes. See the [Xero OAuth 2.0 Scopes documentation](https://developer.xero.com/documentation/guides/oauth2/scopes/) for details on deprecation timelines.
-
-```
-accounting.transactions (Deprecated)
-accounting.transactions.read (Deprecated)
-accounting.invoices
-accounting.invoices.read
-accounting.payments
-accounting.payments.read
-accounting.banktransactions
-accounting.banktransactions.read
-accounting.manualjournals
-accounting.manualjournals.read
-accounting.reports.read (Deprecated)
-accounting.reports.aged.read
-accounting.reports.balancesheet.read
-accounting.reports.profitandloss.read
-accounting.reports.trialbalance.read
-accounting.contacts 
-accounting.settings 
-payroll.settings 
-payroll.employees 
-payroll.timesheets
-```
-
 
 ### Available MCP Commands
 
@@ -196,21 +173,13 @@ For detailed API documentation, please refer to the [MCP Protocol Specification]
 ### Installation
 
 ```bash
-# Using npm
 npm install
-
-# Using pnpm
-pnpm install
 ```
 
 ### Run a build
 
 ```bash
-# Using npm
 npm run build
-
-# Using pnpm
-pnpm build
 ```
 
 ### Integrating with Claude Desktop
@@ -227,7 +196,8 @@ NOTE: For Windows ensure the `args` path escapes the `\` between folders ie. `"C
       "args": ["insert-your-file-path-here/xero-mcp-server/dist/index.js"],
       "env": {
         "XERO_CLIENT_ID": "your_client_id_here",
-        "XERO_CLIENT_SECRET": "your_client_secret_here"
+        "XERO_CLIENT_SECRET": "your_client_secret_here",
+        "XERO_REFRESH_TOKEN": "your_refresh_token_here"
       }
     }
   }
