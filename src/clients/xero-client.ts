@@ -1,9 +1,11 @@
 import axios, { AxiosError } from "axios";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import dotenv from "dotenv";
 import {
   IXeroClientConfig,
   Organisation,
-  TokenSet,
   XeroClient,
 } from "xero-node";
 
@@ -71,155 +73,67 @@ abstract class MCPXeroClient extends XeroClient {
   }
 }
 
-class CustomConnectionsXeroClient extends MCPXeroClient {
+class RefreshTokenXeroClient extends MCPXeroClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
+  private readonly tokenFilePath: string;
+  private currentRefreshToken: string = "";
+  private initialised = false;
 
-  // Legacy scopes (deprecated but still supported for existing apps)
-  private readonly XERO_DEFAULT_AUTH_SCOPES_V1 = [
-    "accounting.transactions",
-    "accounting.contacts",
-    "accounting.settings",
-    "accounting.reports.read",
-    "payroll.settings",
-    "payroll.employees",
-    "payroll.timesheets",
-  ].join(" ");
-
-  // Granular scopes (required for new apps)
-  private readonly XERO_DEFAULT_AUTH_SCOPES_V2 = [
-    "accounting.invoices",
-    "accounting.payments",
-    "accounting.banktransactions",
-    "accounting.manualjournals",
-    "accounting.reports.aged.read",
-    "accounting.reports.balancesheet.read",
-    "accounting.reports.profitandloss.read",
-    "accounting.reports.trialbalance.read",
-    "accounting.contacts",
-    "accounting.settings",
-    "payroll.settings",
-    "payroll.employees",
-    "payroll.timesheets",
-  ].join(" ");
-
-  constructor(config: {
-    clientId: string;
-    clientSecret: string;
-    grantType: string;
-  }) {
-    super(config);
+  constructor(config: { clientId: string; clientSecret: string }) {
+    super({ clientId: config.clientId, clientSecret: config.clientSecret });
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
+    this.tokenFilePath =
+      process.env.XERO_TOKEN_FILE ||
+      path.join(os.homedir(), ".xero-mcp", "refresh_token");
   }
 
-  private formatTokenError(error: unknown, context: string): Error {
-    const axiosError = error as AxiosError;
-    const data = axiosError.response?.data;
-    const message =
-      typeof data === "object" ? JSON.stringify(data) : data || axiosError.message;
-    return new Error(`Failed to get Xero token${context}: ${message}`);
-  }
-
-  public async getClientCredentialsToken(): Promise<TokenSet> {
-    // If XERO_SCOPES is set, use that
-    if (process.env.XERO_SCOPES) {
-      try {
-        return await this.requestToken(process.env.XERO_SCOPES);
-      } catch (envError) {
-        throw this.formatTokenError(envError, " with XERO_SCOPES");
-      }
-    }
-
-    // Else if XERO_SCOPES is not set, try V1 scopes first (for existing apps), fallback to V2 scopes (for new apps) only on invalid_scope error
+  private resolveRefreshToken(): string {
     try {
-      return await this.requestToken(this.XERO_DEFAULT_AUTH_SCOPES_V1);
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      const isInvalidScope =
-        axiosError.response?.status === 400 &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (axiosError.response?.data as any)?.error === "invalid_scope";
-
-      if (!isInvalidScope) {
-        throw this.formatTokenError(error, " with V1 scopes");
-      }
-
-      try {
-        return await this.requestToken(this.XERO_DEFAULT_AUTH_SCOPES_V2);
-      } catch (v2Error) {
-        throw this.formatTokenError(v2Error, " with V2 scopes");
-      }
-    }
-  }
-
-  private async requestToken(scope: string): Promise<TokenSet> {
-    const credentials = Buffer.from(
-      `${this.clientId}:${this.clientSecret}`,
-    ).toString("base64");
-
-    const response = await axios.post(
-      "https://identity.xero.com/connect/token",
-      `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
-      {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-      },
-    );
-
-    // Get the tenant ID from the connections endpoint
-    const token = response.data.access_token;
-    const connectionsResponse = await axios.get(
-      "https://api.xero.com/connections",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      },
-    );
-
-    if (connectionsResponse.data && connectionsResponse.data.length > 0) {
-      this.tenantId = connectionsResponse.data[0].tenantId;
+      const token = fs.readFileSync(this.tokenFilePath, "utf-8").trim();
+      if (token) return token;
+    } catch {
+      // File does not exist or is unreadable — fall through to env var.
     }
 
-    return response.data;
+    const envToken = process.env.XERO_REFRESH_TOKEN;
+    if (envToken) return envToken;
+
+    throw new Error(
+      "No refresh token found. Set XERO_REFRESH_TOKEN to a valid Xero refresh token, or obtain one at https://api-explorer.xero.com",
+    );
   }
 
-  public async authenticate() {
-    const tokenResponse = await this.getClientCredentialsToken();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.4
+  private async exchangeToken(refreshToken: string): Promise<{
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+  }> {
+    // Uses axios and AxiosError — referenced explicitly to suppress import warnings until full implementation
+    void axios;
+    void AxiosError;
+    throw new Error("not implemented");
+  }
 
-    this.setTokenSet({
-      access_token: tokenResponse.access_token,
-      expires_in: tokenResponse.expires_in,
-      token_type: tokenResponse.token_type,
-    });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.6
+  private persistRefreshToken(token: string): void {
+    throw new Error("not implemented");
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.8
+  private scheduleRefresh(expiresIn: number): void {
+    throw new Error("not implemented");
+  }
+
+  public async authenticate(): Promise<void> {
+    throw new Error("not implemented");
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- removed in Task 2.2
-class BearerTokenXeroClient extends MCPXeroClient {
-  private readonly bearerToken: string;
-
-  constructor(config: { bearerToken: string }) {
-    super();
-    this.bearerToken = config.bearerToken;
-  }
-
-  async authenticate(): Promise<void> {
-    this.setTokenSet({
-      access_token: this.bearerToken,
-    });
-
-    await this.updateTenants();
-  }
-}
-
-export const xeroClient = new CustomConnectionsXeroClient({
+export const xeroClient = new RefreshTokenXeroClient({
   clientId: client_id,
   clientSecret: client_secret,
-  grantType: "client_credentials",
 });
