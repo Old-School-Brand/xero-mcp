@@ -2,8 +2,8 @@
 **Layer:** backend
 **Feature:** 001-oauth2-web-app-auth
 **Date:** 2026-05-25
-**Iteration:** iteration 2
-**Status:** PASSED_WITH_WARNINGS
+**Iteration:** iteration 3 (final pass)
+**Status:** PASSED_WITH_WARNINGS (nits only)
 **Baseline:** `git merge-base HEAD main` = `60e89bf` (main)
 
 ## Reviewer Selection (iteration 1)
@@ -18,6 +18,40 @@ Skipped:
   - documentation-reviewer (iterations: ["final"], IS_FINAL=false, default=skip)
   - performance-reviewer (iterations: [1, "final"], iter=2 doesn't match; PASSED clean in iter 1)
   - staff-reviewer (iterations: [1, "final"], iter=2 doesn't match)
+
+## Reviewer Selection (iteration 3 — final pass)
+
+Ran:     dependency-reviewer, documentation-reviewer, duplication-reviewer, maintainability-reviewer, security-reviewer, test-quality-reviewer
+Skipped:
+  - performance-reviewer (clean from iter 1; skip-when-clean)
+  - staff-reviewer (clean from iter 2; skip-when-clean — all 4 findings resolved)
+
+Iter 3 reviewer results:
+  - dependency-reviewer: PASSED (no new outdated deps from this feature; pre-existing tech debt remains out-of-scope)
+  - documentation-reviewer: PASSED_WITH_WARNINGS (1 must-fix + 4 should-fix doc accuracy — all resolved inline)
+  - duplication-reviewer: PASSED (Section 6 setup duplication still open as a nit; no new duplication)
+  - maintainability-reviewer: PASSED (iter 3 fix confirmed non-vacuous)
+  - security-reviewer: PASSED (no new issues from iter 3)
+  - test-quality-reviewer: PASSED (iter 3 fix confirmed non-vacuous)
+
+## documentation-reviewer Review (iter 3 — final pass)
+**Result (iter 3):** PASSED_WITH_WARNINGS → all findings resolved inline before completion
+
+### Findings
+- [x] must-fix — ADR index lists ADR 0001 as "Draft" but the ADR file itself is "Accepted" — `.specs/adr/README.md`:34
+      Resolved (iter 3 inline): Updated the ADR index status column from `Draft` to `Accepted`.
+
+- [x] should-fix — requirements.md has two unchecked acceptance-criteria checkboxes for completed work — `.specs/001-oauth2-web-app-auth/backend/requirements.md`:113-114
+      Resolved (iter 3 inline): Ticked both `.env.example` and `README.md` acceptance criterion boxes.
+
+- [x] should-fix — design.md describes XERO_TOKEN_FILE resolution using `??` but implementation uses `||` — `.specs/001-oauth2-web-app-auth/backend/design.md`:112
+      Resolved (iter 3 inline): Updated Component 2 logic to use `||` with a note explaining why (empty-string env var should fall through to default).
+
+- [x] should-fix — design.md Testing Strategy describes Vitest as "to be introduced — no test framework currently exists in this repo" — `.specs/001-oauth2-web-app-auth/backend/design.md`:230
+      Resolved (iter 3 inline): Updated Framework line to read "Vitest 4.x" (dropping the stale parenthetical).
+
+- [x] should-fix — REPO.md Testing table omits the npm scripts added by this feature — `.specs/REPO.md`:143-146
+      Resolved (iter 3 inline): Added rows for `npm run test` and `npm run test:coverage`; reordered the table.
 
 ## staff-reviewer Review
 **Result (iter 1):** MUST_FIX → not re-run in iter 2

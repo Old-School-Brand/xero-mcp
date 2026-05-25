@@ -142,8 +142,9 @@ xero-mcp/
 
 | Task                | Command                                                              | Where to run |
 |---------------------|----------------------------------------------------------------------|--------------|
-| Run tests           | `npx vitest run src/__tests__/clients/xero-client.test.ts`          | repo root    |
-| Run all tests       | `npx vitest run`                                                     | repo root    |
+| Run all tests       | `npm run test` (= `vitest run`)                                      | repo root    |
+| Run with coverage   | `npm run test:coverage` (= `vitest run --coverage`)                  | repo root    |
+| Run a single file   | `npx vitest run src/__tests__/clients/xero-client.test.ts`           | repo root    |
 
 There is no `npm run start` — see [Driving the running MCP server](#driving-the-running-mcp-server) for how to launch.
 

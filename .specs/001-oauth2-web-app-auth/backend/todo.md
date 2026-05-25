@@ -1,6 +1,6 @@
 # Todo: OAuth2 Web App Auth Flow
 **Layer:** backend
-**Status:** Ready for Review
+**Status:** Complete
 **Last updated:** 2026-05-25
 
 ## Implementation Tasks

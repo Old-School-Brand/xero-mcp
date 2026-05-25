@@ -29,4 +29,6 @@ Supersession is first-class: an ADR can only be superseded by another ADR, never
 
 ## Index
 
-_No ADRs yet. Use `template.md` as the starting point when the first architectural decision in this fork warrants one._
+| ADR | Title | Status |
+|-----|-------|--------|
+| [0001](0001-refresh-token-auth-mode.md) | Refresh Token mode replaces Custom Connection and Bearer Token auth | Accepted |

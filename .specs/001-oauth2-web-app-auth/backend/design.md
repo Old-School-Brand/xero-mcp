@@ -109,7 +109,7 @@ This is the first architecturally significant decision in this fork. It changes 
 - **Responsibility:** Resolve the initial refresh token using priority order: token file, then `XERO_REFRESH_TOKEN` env var, then throw.
 - **Location:** Private method `resolveRefreshToken()` on `RefreshTokenXeroClient`.
 - **Key logic:**
-  - Resolve token file path: `process.env.XERO_TOKEN_FILE ?? path.join(os.homedir(), '.xero-mcp', 'refresh_token')`.
+  - Resolve token file path: `process.env.XERO_TOKEN_FILE || path.join(os.homedir(), '.xero-mcp', 'refresh_token')`. `||` (not `??`) so empty-string env var also falls through to the default path — matches test expectation that `XERO_TOKEN_FILE=""` resolves to the default.
   - Try `fs.readFileSync(tokenFilePath, 'utf-8').trim()`. If file exists and is non-empty, return it.
   - If file doesn't exist or is empty, check `process.env.XERO_REFRESH_TOKEN`. If set, return it.
   - If neither, throw with a message directing the user to the Xero API Explorer.
@@ -227,7 +227,7 @@ This is the first architecturally significant decision in this fork. It changes 
 ## Testing Strategy
 **Mode:** full-tdd
 **Rationale:** `RefreshTokenXeroClient` contains conditional startup logic (env var validation, token source priority, file I/O, HTTP token exchange, error handling, scheduled refresh) that has multiple distinct code paths and failure modes. These are runtime behaviours that must be verified with automated tests.
-**Framework:** Vitest (to be introduced -- no test framework currently exists in this repo). Vitest is chosen because it is the modern, ESM-native test runner for TypeScript projects with built-in mocking, and it requires minimal configuration for an ESM + TypeScript codebase.
+**Framework:** Vitest 4.x. Vitest is chosen because it is the modern, ESM-native test runner for TypeScript projects with built-in mocking, and it requires minimal configuration for an ESM + TypeScript codebase.
 **Test location:** `src/__tests__/clients/xero-client.test.ts`
 **Commands:**
   - Run:      `npx vitest run src/__tests__/clients/xero-client.test.ts`
