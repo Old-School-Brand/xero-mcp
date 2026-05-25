@@ -148,9 +148,7 @@ class RefreshTokenXeroClient extends MCPXeroClient {
         const data = error.response?.data as
           | Record<string, unknown>
           | undefined;
-        const xeroError = data
-          ? JSON.stringify(data)
-          : error.message;
+        const xeroError = data ? JSON.stringify(data) : error.message;
         throw new Error(
           `Refresh token is invalid or expired. Obtain a new one at https://api-explorer.xero.com. Xero error: ${xeroError}`,
         );
@@ -171,13 +169,41 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     fs.renameSync(tmpPath, this.tokenFilePath);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.8
   private scheduleRefresh(expiresIn: number): void {
-    throw new Error("not implemented");
+    const delayMs = (expiresIn - 300) * 1000;
+    setTimeout(async () => {
+      try {
+        const tokenData = await this.exchangeToken(this.currentRefreshToken);
+        this.persistRefreshToken(tokenData.refresh_token);
+        this.currentRefreshToken = tokenData.refresh_token;
+        this.setTokenSet({
+          access_token: tokenData.access_token,
+          expires_in: tokenData.expires_in,
+          token_type: tokenData.token_type,
+        });
+        this.scheduleRefresh(tokenData.expires_in);
+      } catch (error) {
+        console.error("Scheduled token refresh failed:", error);
+        process.exit(1);
+      }
+    }, delayMs).unref();
   }
 
   public async authenticate(): Promise<void> {
-    throw new Error("not implemented");
+    if (this.initialised) return;
+
+    const refreshToken = this.resolveRefreshToken();
+    const tokenData = await this.exchangeToken(refreshToken);
+    this.persistRefreshToken(tokenData.refresh_token);
+    this.currentRefreshToken = tokenData.refresh_token;
+    this.setTokenSet({
+      access_token: tokenData.access_token,
+      expires_in: tokenData.expires_in,
+      token_type: tokenData.token_type,
+    });
+    await this.updateTenants();
+    this.scheduleRefresh(tokenData.expires_in);
+    this.initialised = true;
   }
 }
 

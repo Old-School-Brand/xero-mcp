@@ -339,8 +339,10 @@ describe("scheduleRefresh()", () => {
       "rt_rotated_003",
       { mode: 0o600 }
     );
-    // updateTenants should NOT have been called during scheduled refresh (spy was set up during authenticate)
+    // updateTenants should NOT have been called during scheduled refresh
+    // In Vitest 4.x, vi.spyOn returns the same accumulated spy, so clear call history before asserting
     const updateTenantsSpy = vi.spyOn(client as unknown as { updateTenants(): Promise<unknown[]> }, "updateTenants");
+    updateTenantsSpy.mockClear();
     expect(updateTenantsSpy).not.toHaveBeenCalled();
   });
 

@@ -1,7 +1,7 @@
 # Todo: OAuth2 Web App Auth Flow
 **Layer:** backend
-**Status:** In Progress
-**Last updated:** 2026-05-24
+**Status:** Ready for Review
+**Last updated:** 2026-05-25
 
 ## Implementation Tasks
 
@@ -35,75 +35,69 @@ Tasks are ordered. Do not start a task until its dependencies are complete.
   - Completed: 2026-05-25
   - Tests: `src/__tests__/clients/xero-client.test.ts`
 
-- [ ] **Task 2.3** — Write failing tests for `exchangeToken()` (FR-3, Examples 7)
+- [x] **Task 2.3** — Write failing tests for `exchangeToken()` (FR-3, Examples 7)
   - File(s): `src/__tests__/clients/xero-client.test.ts`
-  - What to do: Add a describe block for `exchangeToken()`. Mock `axios` using `vi.mock('axios')`. Write two tests: (a) Xero returns a 200 response with `{ access_token: "at_new", refresh_token: "rt_rotated", expires_in: 1800 }` — the method returns those fields; (b) Xero returns a 400 response with `{ error: "invalid_grant" }` — the method throws with a message containing `"invalid"` and `"https://api-explorer.xero.com"`. Verify that the POST is made with `Authorization: Basic <base64(clientId:clientSecret)>`, `Content-Type: application/x-www-form-urlencoded`, and body containing `grant_type=refresh_token` and the provided refresh token value.
-  - Acceptance: Two new tests reported as failing (method stub returns "not implemented").
-  - Depends on: Task 2.2
-  - Examples: Example 7
-
-- [ ] **Task 2.4** — Implement `exchangeToken()`; tests go green
-  - File(s): `src/clients/xero-client.ts`
-  - What to do: Add `private async exchangeToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string; expires_in: number; token_type: string }>` to `RefreshTokenXeroClient`. Logic: build Basic auth header `Buffer.from(\`${this.clientId}:${this.clientSecret}\`).toString('base64')`. POST to `https://identity.xero.com/connect/token` with body `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}` and headers `Authorization: Basic ${credentials}`, `Content-Type: application/x-www-form-urlencoded`. On success: return `response.data`. On any error: catch and throw a new Error with message `"Refresh token is invalid or expired. Obtain a new one at https://api-explorer.xero.com. Xero error: ${<extract error from AxiosError.response.data or error.message>}"`.
-  - Acceptance: The two tests from Task 2.3 pass. `npm run build` passes. `npm run lint` passes.
-  - Depends on: Task 2.3
-  - Examples: Example 7
-
-- [ ] **Task 2.5** — Write failing tests for `persistRefreshToken()` (FR-4, Example 8)
-  - File(s): `src/__tests__/clients/xero-client.test.ts`
-  - Completed: 2026-05-25 (tests already in file)
+  - Completed: 2026-05-25
   - Tests: `src/__tests__/clients/xero-client.test.ts`
 
-- [ ] **Task 2.6** — Implement `persistRefreshToken()`; tests go green
+- [x] **Task 2.4** — Implement `exchangeToken()`; tests go green
   - File(s): `src/clients/xero-client.ts`
-  - Depends on: Task 2.5
-  - Examples: Example 8
-
-- [ ] **Task 2.7** — Write failing tests for `scheduleRefresh()` and the timer behaviour (FR-6, FR-7, Examples 9, 10)
-  - File(s): `src/__tests__/clients/xero-client.test.ts`
-  - Completed: 2026-05-25 (tests already in file)
+  - Completed: 2026-05-25
   - Tests: `src/__tests__/clients/xero-client.test.ts`
 
-- [ ] **Task 2.8** — Implement `scheduleRefresh()`; tests go green
-  - File(s): `src/clients/xero-client.ts`
-  - Depends on: Task 2.7
-  - Examples: Example 9, Example 10
-
-- [ ] **Task 2.9** — Write failing tests for `authenticate()` startup orchestration (FR-5, Examples 1, 11)
+- [x] **Task 2.5** — Write failing tests for `persistRefreshToken()` (FR-4, Example 8)
   - File(s): `src/__tests__/clients/xero-client.test.ts`
-  - Completed: 2026-05-25 (tests already in file)
+  - Completed: 2026-05-25
   - Tests: `src/__tests__/clients/xero-client.test.ts`
 
-- [ ] **Task 2.10** — Implement `authenticate()`; tests go green
+- [x] **Task 2.6** — Implement `persistRefreshToken()`; tests go green
   - File(s): `src/clients/xero-client.ts`
-  - Depends on: Task 2.9
-  - Examples: Example 1, Example 11
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
+
+- [x] **Task 2.7** — Write failing tests for `scheduleRefresh()` and the timer behaviour (FR-6, FR-7, Examples 9, 10)
+  - File(s): `src/__tests__/clients/xero-client.test.ts`
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
+
+- [x] **Task 2.8** — Implement `scheduleRefresh()`; tests go green
+  - File(s): `src/clients/xero-client.ts`
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
+
+- [x] **Task 2.9** — Write failing tests for `authenticate()` startup orchestration (FR-5, Examples 1, 11)
+  - File(s): `src/__tests__/clients/xero-client.test.ts`
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
+
+- [x] **Task 2.10** — Implement `authenticate()`; tests go green
+  - File(s): `src/clients/xero-client.ts`
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
 
 ### Phase 3: Integration & Entry Point
 
-- [ ] **Task 3.1** — Wire eager authentication into `src/index.ts` (Component 8)
+- [x] **Task 3.1** — Wire eager authentication into `src/index.ts` (Component 8)
   - File(s): `src/index.ts`
-  - Depends on: Task 2.10
-  - Examples: Example 1
+  - Completed: 2026-05-25
 
-- [ ] **Task 3.2** — Verify complete removal of old auth code (FR-8, Example 12)
+- [x] **Task 3.2** — Verify complete removal of old auth code (FR-8, Example 12)
   - File(s): `src/clients/xero-client.ts`
-  - Depends on: Task 3.1
-  - Examples: Example 12
+  - Completed: 2026-05-25
 
-- [ ] **Task 3.3** — Update ADR 0001 status to Accepted
+- [x] **Task 3.3** — Update ADR 0001 status to Accepted
   - File(s): `.specs/adr/0001-refresh-token-auth-mode.md`
-  - Depends on: Task 3.2
+  - Completed: 2026-05-25
 
 ### Phase 4: Documentation & Cleanup
 
-- [ ] **Task 4.1** — Update `.env.example` (FR-9)
+- [x] **Task 4.1** — Update `.env.example` (FR-9)
   - File(s): `.env.example`
-  - Depends on: Task 3.2
+  - Completed: 2026-05-25
 
-- [ ] **Task 4.2** — Rewrite the Authentication section of `README.md` (FR-9)
+- [x] **Task 4.2** — Rewrite the Authentication section of `README.md` (FR-9)
   - File(s): `README.md`
-  - Depends on: Task 4.1
+  - Completed: 2026-05-25
 
 ## Out of Scope
 
