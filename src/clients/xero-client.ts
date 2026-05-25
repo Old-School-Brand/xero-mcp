@@ -105,17 +105,58 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.4
   private async exchangeToken(refreshToken: string): Promise<{
     access_token: string;
     refresh_token: string;
     expires_in: number;
     token_type: string;
   }> {
-    // Uses axios and AxiosError — referenced explicitly to suppress import warnings until full implementation
-    void axios;
-    void AxiosError;
-    throw new Error("not implemented");
+    const credentials = Buffer.from(
+      `${this.clientId}:${this.clientSecret}`,
+    ).toString("base64");
+
+    try {
+      const response = await axios.post(
+        "https://identity.xero.com/connect/token",
+        `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+        {
+          headers: {
+            Authorization: `Basic ${credentials}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+        },
+      );
+
+      const { access_token, refresh_token, expires_in, token_type } =
+        response.data as {
+          access_token: string;
+          refresh_token: string;
+          expires_in: number;
+          token_type: string;
+        };
+
+      if (expires_in === undefined || expires_in === null) {
+        throw new Error(
+          "Xero response missing expires_in — cannot schedule token refresh",
+        );
+      }
+
+      return { access_token, refresh_token, expires_in, token_type };
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        const data = error.response?.data as
+          | Record<string, unknown>
+          | undefined;
+        const xeroError = data
+          ? JSON.stringify(data)
+          : error.message;
+        throw new Error(
+          `Refresh token is invalid or expired. Obtain a new one at https://api-explorer.xero.com. Xero error: ${xeroError}`,
+        );
+      }
+      throw error;
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.6
