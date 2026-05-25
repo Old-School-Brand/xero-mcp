@@ -18,14 +18,14 @@ See `.specs/PRD.md` for the fork's charter.
 | Language     | TypeScript 5.9 (`strict: true`, target ES2022, module Node16, ESM)         |
 | MCP          | `@modelcontextprotocol/sdk` ^1.23.4 (stdio transport)                      |
 | Xero SDK     | `xero-node` ^13.3.0                                                        |
-| Auth         | `openid-client` ^6.8.1 (Custom Connections — client credentials grant; or pre-issued Bearer Token) |
+| Auth         | Refresh Token mode via axios (refresh token exchange, token file persistence, proactive renewal) |
 | Validation   | `zod` 3.25                                                                 |
 | Env          | `dotenv` ^16.4.7                                                           |
 | Linting      | ESLint 9 (`@eslint/js` + `typescript-eslint`)                              |
 | Formatting   | Prettier 3.7 (via `eslint-config-prettier/flat`)                           |
 | Type check   | `tsc` (part of `npm run build`)                                            |
 | Package mgr  | `npm` (lockfile: `package-lock.json`)                                      |
-| Testing      | None yet (no test framework configured upstream)                           |
+| Testing      | Vitest 4.x (`vitest run`)                                                  |
 | CI/CD        | None yet — `infra` / `ci-cd` layers are where this work will land          |
 
 ---
@@ -39,7 +39,7 @@ xero-mcp/
 │   ├── server/
 │   │   └── xero-mcp-server.ts    # Singleton McpServer wrapper
 │   ├── clients/
-│   │   └── xero-client.ts        # XeroClient subclasses for Custom Connection + Bearer Token; V1/V2 scope fallback
+│   │   └── xero-client.ts        # RefreshTokenXeroClient — refresh token exchange, token file persistence, proactive renewal
 │   ├── handlers/                 # One handler file per Xero API operation (~53 files)
 │   │   ├── create-xero-*.handler.ts
 │   │   ├── list-xero-*.handler.ts
@@ -64,7 +64,7 @@ xero-mcp/
 ├── tsconfig.json                 # strict ES2022 / Node16 ESM
 ├── eslint.config.js              # Flat config: @eslint/js + typescript-eslint + prettier
 ├── .prettierrc
-├── .env.example                  # XERO_CLIENT_ID / XERO_CLIENT_SECRET template
+├── .env.example                  # XERO_CLIENT_ID / XERO_CLIENT_SECRET / XERO_REFRESH_TOKEN template
 ├── start-server.sh               # Local-dev convenience: `npx tsc && node dist/index.js`
 ├── glama.json                    # Glama MCP registry metadata
 ├── README.md                     # User-facing: setup, auth modes, available tools
@@ -105,14 +105,14 @@ xero-mcp/
 
 ### Required env vars
 
-| Variable                    | Purpose                                                                  |
-|-----------------------------|--------------------------------------------------------------------------|
-| `XERO_CLIENT_ID`            | Xero Custom Connection client ID                                         |
-| `XERO_CLIENT_SECRET`        | Xero Custom Connection client secret                                     |
-| `XERO_SCOPES`               | Optional. Space-separated scope list. Overrides V1/V2 default fallback.  |
-| `XERO_CLIENT_BEARER_TOKEN`  | Optional. If set, takes precedence over `XERO_CLIENT_ID` — used for multi-tenant runtime auth flows |
+| Variable              | Purpose                                                                              |
+|-----------------------|--------------------------------------------------------------------------------------|
+| `XERO_CLIENT_ID`      | Xero app client ID                                                                   |
+| `XERO_CLIENT_SECRET`  | Xero app client secret                                                               |
+| `XERO_REFRESH_TOKEN`  | Refresh token seed (used on first run if token file is absent; rotated thereafter)  |
+| `XERO_TOKEN_FILE`     | Optional. Path to the persisted refresh token file. Defaults to `~/.xero-mcp/refresh_token` |
 
-The client tries V1 (legacy bundled) scopes first and falls back to V2 (granular) scopes if Xero rejects V1. Both lists live in `src/clients/xero-client.ts` (`XERO_DEFAULT_AUTH_SCOPES_V1` / `_V2`).
+**Refresh Token mode:** At startup the server exchanges the refresh token for an access token, persists the rotated refresh token to the token file with `0600` permissions, then schedules proactive renewal at `expires_in - 300` seconds. All ~52 handlers call `await xeroClient.authenticate()` which is a no-op after the initial startup exchange.
 
 ---
 
@@ -137,6 +137,13 @@ The client tries V1 (legacy bundled) scopes first and falls back to V2 (granular
 | Watch (incremental tsc)    | `npm run watch`        | repo root    |
 | Lint (check)               | `npm run lint`         | repo root    |
 | Lint (fix)                 | `npm run lint:fix`     | repo root    |
+
+### Testing
+
+| Task                | Command                                                              | Where to run |
+|---------------------|----------------------------------------------------------------------|--------------|
+| Run tests           | `npx vitest run src/__tests__/clients/xero-client.test.ts`          | repo root    |
+| Run all tests       | `npx vitest run`                                                     | repo root    |
 
 There is no `npm run start` — see [Driving the running MCP server](#driving-the-running-mcp-server) for how to launch.
 
@@ -168,7 +175,7 @@ Add a dev entry to `claude_desktop_config.json` pointing at the local build:
       "env": {
         "XERO_CLIENT_ID": "...",
         "XERO_CLIENT_SECRET": "...",
-        "XERO_SCOPES": "accounting.invoices accounting.contacts accounting.settings"
+        "XERO_REFRESH_TOKEN": "..."
       }
     }
   }
@@ -226,7 +233,7 @@ Per `.specs/PRD.md`: changes that *should* live upstream (new Xero API integrati
 - `.env` is gitignored — never commit secrets, never check in `.env`.
 - `.env.example` is the source of truth for required variable names.
 - Secrets are loaded once by `dotenv.config()` in `src/clients/xero-client.ts`.
-- The client throws at startup if neither `XERO_CLIENT_BEARER_TOKEN` nor `(XERO_CLIENT_ID + XERO_CLIENT_SECRET)` is set — fail-loud is intentional.
+- The client throws at startup if either `XERO_CLIENT_ID` or `XERO_CLIENT_SECRET` is missing — fail-loud is intentional.
 
 ### Linting & formatting
 

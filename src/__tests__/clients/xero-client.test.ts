@@ -55,6 +55,23 @@ import * as fs from "node:fs";
 import axios from "axios";
 import { AxiosError } from "axios";
 
+// ─── TestableClient: exposes all private methods exercised in tests ──────────
+// Defined once here; each describe block casts via `client as unknown as TestableClient`
+// to avoid repeating inline hand-written interface shapes throughout.
+type TestableClient = {
+  resolveRefreshToken(): string;
+  exchangeToken(token: string): Promise<{
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+  }>;
+  persistRefreshToken(token: string): void;
+  updateTenants(): Promise<unknown[]>;
+  setTokenSet(t: unknown): void;
+  tokenFilePath: string;
+};
+
 /** Build a minimal AxiosError with a response payload for testing. */
 function makeAxiosError(status: number, data: unknown): AxiosError {
   const err = new AxiosError("Request failed");
@@ -66,6 +83,22 @@ function makeAxiosError(status: number, data: unknown): AxiosError {
     config: err.config ?? ({} as AxiosResponse["config"]),
   } as AxiosResponse;
   return err;
+}
+
+/**
+ * Get a fresh client instance: resets modules, stubs the minimum required env
+ * vars, then imports and returns `mod.xeroClient`. Each describe block casts
+ * the return value to `TestableClient` as needed.
+ *
+ * Kept separate from `getBootstrappedClient()` because most sections need only
+ * the client instance without going through the full `authenticate()` flow.
+ */
+async function getFreshClient() {
+  vi.resetModules();
+  vi.stubEnv("XERO_CLIENT_ID", "ABC123");
+  vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
+  const mod = await import("../../clients/xero-client.js");
+  return mod.xeroClient;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -99,18 +132,6 @@ describe("startup env var validation", () => {
 // Section 2: resolveRefreshToken()
 // ────────────────────────────────────────────────────────────────────────────
 describe("resolveRefreshToken()", () => {
-  // Helper to get a fresh client instance after module reset
-  async function getClient() {
-    vi.resetModules();
-    vi.stubEnv("XERO_CLIENT_ID", "ABC123");
-    vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
-    const mod = await import("../../clients/xero-client.js");
-    return mod.xeroClient as unknown as {
-      resolveRefreshToken(): string;
-      tokenFilePath: string;
-    };
-  }
-
   beforeEach(() => {
     vi.resetModules();
     vi.stubEnv("XERO_CLIENT_ID", "ABC123");
@@ -124,16 +145,16 @@ describe("resolveRefreshToken()", () => {
   it("test_tokenFileExists_returnsFileTrimmed: returns trimmed content from default token file", async () => {
     vi.stubEnv("XERO_TOKEN_FILE", "");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_with_spaces  \n");
-    const client = await getClient();
-    const result = (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken();
+    const client = await getFreshClient();
+    const result = (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_with_spaces");
   });
 
   it("test_customTokenFilePath_returnsFileContent: respects custom XERO_TOKEN_FILE path", async () => {
     vi.stubEnv("XERO_TOKEN_FILE", "/tmp/custom-xero-token");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_custom_path");
-    const client = await getClient();
-    const result = (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken();
+    const client = await getFreshClient();
+    const result = (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_custom_path");
   });
 
@@ -143,8 +164,8 @@ describe("resolveRefreshToken()", () => {
     vi.mocked(fs.readFileSync).mockImplementation(() => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
-    const client = await getClient();
-    const result = (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken();
+    const client = await getFreshClient();
+    const result = (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_env_seed_001");
   });
 
@@ -152,8 +173,8 @@ describe("resolveRefreshToken()", () => {
     vi.stubEnv("XERO_TOKEN_FILE", "");
     vi.stubEnv("XERO_REFRESH_TOKEN", "rt_env_older");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_file_newer");
-    const client = await getClient();
-    const result = (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken();
+    const client = await getFreshClient();
+    const result = (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_file_newer");
   });
 
@@ -163,13 +184,10 @@ describe("resolveRefreshToken()", () => {
     vi.mocked(fs.readFileSync).mockImplementation(() => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
-    const client = await getClient();
+    const client = await getFreshClient();
     expect(() =>
-      (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken()
-    ).toThrow(/XERO_REFRESH_TOKEN/);
-    expect(() =>
-      (client as unknown as { resolveRefreshToken(): string }).resolveRefreshToken()
-    ).toThrow(/https:\/\/api-explorer\.xero\.com/);
+      (client as unknown as TestableClient).resolveRefreshToken()
+    ).toThrow(/XERO_REFRESH_TOKEN.*https:\/\/api-explorer\.xero\.com|https:\/\/api-explorer\.xero\.com.*XERO_REFRESH_TOKEN/);
   });
 });
 
@@ -177,21 +195,6 @@ describe("resolveRefreshToken()", () => {
 // Section 3: exchangeToken()
 // ────────────────────────────────────────────────────────────────────────────
 describe("exchangeToken()", () => {
-  async function getClient() {
-    vi.resetModules();
-    vi.stubEnv("XERO_CLIENT_ID", "ABC123");
-    vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
-    const mod = await import("../../clients/xero-client.js");
-    return mod.xeroClient as unknown as {
-      exchangeToken(token: string): Promise<{
-        access_token: string;
-        refresh_token: string;
-        expires_in: number;
-        token_type: string;
-      }>;
-    };
-  }
-
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -206,8 +209,8 @@ describe("exchangeToken()", () => {
         token_type: "Bearer",
       },
     });
-    const client = await getClient();
-    const result = await (client as unknown as { exchangeToken(t: string): Promise<unknown> }).exchangeToken(
+    const client = await getFreshClient();
+    const result = await (client as unknown as TestableClient).exchangeToken(
       "rt_expired_001"
     );
     expect(result).toMatchObject({
@@ -219,13 +222,10 @@ describe("exchangeToken()", () => {
 
   it("test_expiredToken_throwsWithGuidance: throws with 'invalid' and api-explorer URL on 400", async () => {
     vi.mocked(axios.post).mockRejectedValue(makeAxiosError(400, { error: "invalid_grant" }));
-    const client = await getClient();
+    const client = await getFreshClient();
     await expect(
-      (client as unknown as { exchangeToken(t: string): Promise<unknown> }).exchangeToken("rt_expired_001")
-    ).rejects.toThrow(/invalid/i);
-    await expect(
-      (client as unknown as { exchangeToken(t: string): Promise<unknown> }).exchangeToken("rt_expired_001")
-    ).rejects.toThrow(/https:\/\/api-explorer\.xero\.com/);
+      (client as unknown as TestableClient).exchangeToken("rt_expired_001")
+    ).rejects.toThrow(/invalid.*https:\/\/api-explorer\.xero\.com|https:\/\/api-explorer\.xero\.com.*invalid/i);
   });
 });
 
@@ -233,37 +233,27 @@ describe("exchangeToken()", () => {
 // Section 4: persistRefreshToken()
 // ────────────────────────────────────────────────────────────────────────────
 describe("persistRefreshToken()", () => {
-  async function getClient() {
-    vi.resetModules();
-    vi.stubEnv("XERO_CLIENT_ID", "ABC123");
-    vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
-    vi.stubEnv("XERO_TOKEN_FILE", "/nonexistent/dir/refresh_token");
-    const mod = await import("../../clients/xero-client.js");
-    return mod.xeroClient as unknown as {
-      persistRefreshToken(token: string): void;
-    };
-  }
-
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
   });
 
   it("test_missingTokenFileDir_throwsWithDirName: throws with dir path when directory missing", async () => {
+    vi.stubEnv("XERO_TOKEN_FILE", "/nonexistent/dir/refresh_token");
     vi.mocked(fs.existsSync).mockReturnValue(false);
-    const client = await getClient();
+    const client = await getFreshClient();
     expect(() =>
-      (client as unknown as { persistRefreshToken(t: string): void }).persistRefreshToken("rt_rotated_002")
+      (client as unknown as TestableClient).persistRefreshToken("rt_rotated_002")
     ).toThrow(/\/nonexistent\/dir/);
   });
 
-  it("test_dirExists_writesTokenFile: calls writeFileSync with 0600 permissions when dir exists", async () => {
-    vi.mocked(fs.existsSync).mockReturnValue(true);
+  it("test_dirExists_writesTokenFile: calls writeFileSync with .tmp path and 0600 permissions when dir exists", async () => {
     vi.stubEnv("XERO_TOKEN_FILE", "/tmp/test-refresh-token");
-    const client = await getClient();
-    (client as unknown as { persistRefreshToken(t: string): void }).persistRefreshToken("rt_rotated_002");
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    const client = await getFreshClient();
+    (client as unknown as TestableClient).persistRefreshToken("rt_rotated_002");
     expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-      expect.any(String),
+      "/tmp/test-refresh-token.tmp",
       "rt_rotated_002",
       { mode: 0o600 }
     );
@@ -307,7 +297,7 @@ describe("scheduleRefresh()", () => {
     const mod = await import("../../clients/xero-client.js");
     const client = mod.xeroClient;
     // Stub updateTenants so it doesn't make real HTTP calls
-    vi.spyOn(client as unknown as { updateTenants(): Promise<unknown[]> }, "updateTenants").mockResolvedValue([]);
+    vi.spyOn(client as unknown as TestableClient, "updateTenants").mockResolvedValue([]);
     await client.authenticate();
     return client;
   }
@@ -341,7 +331,7 @@ describe("scheduleRefresh()", () => {
     );
     // updateTenants should NOT have been called during scheduled refresh
     // In Vitest 4.x, vi.spyOn returns the same accumulated spy, so clear call history before asserting
-    const updateTenantsSpy = vi.spyOn(client as unknown as { updateTenants(): Promise<unknown[]> }, "updateTenants");
+    const updateTenantsSpy = vi.spyOn(client as unknown as TestableClient, "updateTenants");
     updateTenantsSpy.mockClear();
     expect(updateTenantsSpy).not.toHaveBeenCalled();
   });
@@ -360,24 +350,20 @@ describe("scheduleRefresh()", () => {
   });
 
   it("test_timerIsUnrefed: the timer handle has unref() called on it", async () => {
-    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
-    const client = await getBootstrappedClient();
-    void client;
-    // Advance timer to fire and re-schedule
-    vi.mocked(axios.post).mockResolvedValue({
-      data: {
-        access_token: "at_renewed",
-        refresh_token: "rt_rotated_004",
-        expires_in: 1800,
-        token_type: "Bearer",
-      },
-    });
-    await vi.advanceTimersByTimeAsync((1800 - 300) * 1000);
-    // Verify setTimeout was called (the handle was created and unref'd)
-    expect(setTimeoutSpy).toHaveBeenCalled();
-    // Check the initial timer handle (from authenticate) has unref available
-    const handle = setTimeoutSpy.mock.results[0]?.value as NodeJS.Timeout | undefined;
-    expect(handle).toBeDefined();
+    // Mock setTimeout to return a handle with a spy on unref() so we can assert it was called.
+    const unrefSpy = vi.fn();
+    const originalSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(
+      (callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+        const handle = originalSetTimeout(callback as (...a: unknown[]) => void, delay, ...args);
+        (handle as unknown as { unref: () => void }).unref = unrefSpy;
+        return handle;
+      }
+    );
+
+    await getBootstrappedClient();
+
+    expect(unrefSpy).toHaveBeenCalled();
   });
 });
 
@@ -412,10 +398,10 @@ describe("authenticate()", () => {
     const mod = await import("../../clients/xero-client.js");
     const client = mod.xeroClient;
     const updateTenantsSpy = vi
-      .spyOn(client as unknown as { updateTenants(): Promise<unknown[]> }, "updateTenants")
+      .spyOn(client as unknown as TestableClient, "updateTenants")
       .mockResolvedValue([]);
     const setTokenSetSpy = vi.spyOn(
-      client as unknown as { setTokenSet(t: unknown): void },
+      client as unknown as TestableClient,
       "setTokenSet"
     );
     await client.authenticate();
@@ -429,8 +415,12 @@ describe("authenticate()", () => {
       "rt_rotated_001",
       { mode: 0o600 }
     );
+    // Verify setTokenSet was called with the correct shape and that refresh_token is excluded
     expect(setTokenSetSpy).toHaveBeenCalledWith(
       expect.objectContaining({ access_token: "at_new" })
+    );
+    expect(setTokenSetSpy).toHaveBeenCalledWith(
+      expect.not.objectContaining({ refresh_token: expect.anything() })
     );
     expect(updateTenantsSpy).toHaveBeenCalledTimes(1);
   });
@@ -452,7 +442,7 @@ describe("authenticate()", () => {
     });
     const mod = await import("../../clients/xero-client.js");
     const client = mod.xeroClient;
-    vi.spyOn(client as unknown as { updateTenants(): Promise<unknown[]> }, "updateTenants").mockResolvedValue([]);
+    vi.spyOn(client as unknown as TestableClient, "updateTenants").mockResolvedValue([]);
     await client.authenticate();
     vi.mocked(axios.post).mockClear();
     vi.mocked(fs.writeFileSync).mockClear();

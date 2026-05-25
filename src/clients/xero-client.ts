@@ -79,6 +79,7 @@ class RefreshTokenXeroClient extends MCPXeroClient {
   private readonly tokenFilePath: string;
   private currentRefreshToken: string = "";
   private initialised = false;
+  private authPromise: Promise<void> | null = null;
 
   constructor(config: { clientId: string; clientSecret: string }) {
     super({ clientId: config.clientId, clientSecret: config.clientSecret });
@@ -130,11 +131,17 @@ class RefreshTokenXeroClient extends MCPXeroClient {
 
       const { access_token, refresh_token, expires_in, token_type } =
         response.data as {
-          access_token: string;
-          refresh_token: string;
-          expires_in: number;
+          access_token?: string;
+          refresh_token?: string;
+          expires_in?: number | null;
           token_type: string;
         };
+
+      if (!access_token || !refresh_token) {
+        throw new Error(
+          "Xero response missing required token fields",
+        );
+      }
 
       if (expires_in === undefined || expires_in === null) {
         throw new Error(
@@ -191,7 +198,14 @@ class RefreshTokenXeroClient extends MCPXeroClient {
 
   public async authenticate(): Promise<void> {
     if (this.initialised) return;
+    // Concurrency guard: share a single in-flight promise so concurrent callers
+    // do not each run the full startup flow independently.
+    if (this.authPromise) return this.authPromise;
+    this.authPromise = this._doAuthenticate();
+    return this.authPromise;
+  }
 
+  private async _doAuthenticate(): Promise<void> {
     const refreshToken = this.resolveRefreshToken();
     const tokenData = await this.exchangeToken(refreshToken);
     this.persistRefreshToken(tokenData.refresh_token);
