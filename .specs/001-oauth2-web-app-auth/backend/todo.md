@@ -9,26 +9,31 @@ Tasks are ordered. Do not start a task until its dependencies are complete.
 
 ### Phase 1: Foundation
 
-- [ ] **Task 1.1** — Install Vitest and add axios as a direct dependency
+- [x] **Task 1.1** — Install Vitest and add axios as a direct dependency
   - File(s): `package.json`, `package-lock.json`
   - What to do: Run `npm install -D vitest @vitest/coverage-v8` to add the test framework. Run `npm install axios` to make axios a direct dependency (it is currently only a transitive dep of `xero-node`, but the new code expands its use to a first-class role — making it direct prevents silent breakage if `xero-node` ever removes it). Add a `"test"` script to `package.json`: `"test": "vitest run"` and a `"test:coverage"` script: `"test:coverage": "vitest run --coverage"`.
   - Acceptance: `npm run test` resolves without "vitest not found" error (even if no test files exist yet). `axios` appears in `dependencies` in `package.json`. `npm run build` still passes.
   - Depends on: (none)
   - Examples: (none — setup only)
+  - Completed: 2026-05-25
 
-- [ ] **Task 1.2** — Write failing tests for startup env var validation (FR-1, Examples 5 and 6)
+- [x] **Task 1.2** — Write failing tests for startup env var validation (FR-1, Examples 5 and 6)
   - File(s): `src/__tests__/clients/xero-client.test.ts`
   - What to do: Create the test file and the test suite scaffold. Write two tests using `vi.stubEnv` (or env manipulation + dynamic import with module reset via `vi.resetModules()`) that cover: (a) when `XERO_CLIENT_ID` is absent, importing the module throws with a message containing `"XERO_CLIENT_ID is required"`; (b) when `XERO_CLIENT_SECRET` is absent, importing the module throws with a message containing `"XERO_CLIENT_SECRET is required"`. Both tests should be failing (red) because the current module throws a generic message. Include the necessary `beforeEach`/`afterEach` hooks to reset module registry between tests using `vi.resetModules()`.
   - Acceptance: `npx vitest run src/__tests__/clients/xero-client.test.ts` runs and the two new tests are reported as failing (not erroring on setup).
   - Depends on: Task 1.1
   - Examples: Example 5, Example 6
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
 
-- [ ] **Task 1.3** — Implement startup env var validation; tests go green
+- [x] **Task 1.3** — Implement startup env var validation; tests go green
   - File(s): `src/clients/xero-client.ts`
   - What to do: Replace the current module-level validation block (lines 14–21) with: read `client_id = process.env.XERO_CLIENT_ID` and `client_secret = process.env.XERO_CLIENT_SECRET` (removing `bearer_token` and `grant_type` variables entirely). Add two explicit throws — `if (!client_id) throw new Error("XERO_CLIENT_ID is required");` followed by `if (!client_secret) throw new Error("XERO_CLIENT_SECRET is required");`. Remove the `bearer_token` variable and combined guard. Keep `dotenv.config()` and the `MCPXeroClient` abstract base class entirely unchanged.
   - Acceptance: The two tests from Task 1.2 pass. `npm run build` passes. `npm run lint` passes.
   - Depends on: Task 1.2
   - Examples: Example 5, Example 6
+  - Completed: 2026-05-25
+  - Tests: `src/__tests__/clients/xero-client.test.ts`
 
 ### Phase 2: Core Logic
 

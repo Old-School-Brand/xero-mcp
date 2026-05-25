@@ -13,12 +13,9 @@ dotenv.config();
 
 const client_id = process.env.XERO_CLIENT_ID;
 const client_secret = process.env.XERO_CLIENT_SECRET;
-const bearer_token = process.env.XERO_CLIENT_BEARER_TOKEN;
-const grant_type = "client_credentials";
 
-if (!bearer_token && (!client_id || !client_secret)) {
-  throw Error("Environment Variables not set - please check your .env file");
-}
+if (!client_id) throw new Error("XERO_CLIENT_ID is required");
+if (!client_secret) throw new Error("XERO_CLIENT_SECRET is required");
 
 abstract class MCPXeroClient extends XeroClient {
   public tenantId: string;
@@ -126,7 +123,7 @@ class CustomConnectionsXeroClient extends MCPXeroClient {
 
   public async getClientCredentialsToken(): Promise<TokenSet> {
     // If XERO_SCOPES is set, use that
-    if (process.env.XERO_SCOPES) {                                                                                                                                                     
+    if (process.env.XERO_SCOPES) {
       try {
         return await this.requestToken(process.env.XERO_SCOPES);
       } catch (envError) {
@@ -203,6 +200,7 @@ class CustomConnectionsXeroClient extends MCPXeroClient {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- removed in Task 2.2
 class BearerTokenXeroClient extends MCPXeroClient {
   private readonly bearerToken: string;
 
@@ -220,12 +218,8 @@ class BearerTokenXeroClient extends MCPXeroClient {
   }
 }
 
-export const xeroClient = bearer_token
-  ? new BearerTokenXeroClient({
-      bearerToken: bearer_token,
-    })
-  : new CustomConnectionsXeroClient({
-      clientId: client_id!,
-      clientSecret: client_secret!,
-      grantType: grant_type,
-    });
+export const xeroClient = new CustomConnectionsXeroClient({
+  clientId: client_id,
+  clientSecret: client_secret,
+  grantType: "client_credentials",
+});
