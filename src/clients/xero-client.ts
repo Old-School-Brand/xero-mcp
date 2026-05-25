@@ -159,9 +159,16 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.6
   private persistRefreshToken(token: string): void {
-    throw new Error("not implemented");
+    const dir = path.dirname(this.tokenFilePath);
+    if (!fs.existsSync(dir)) {
+      throw new Error(
+        `Token file directory does not exist: ${dir}. Create it with: mkdir -p ${dir}`,
+      );
+    }
+    const tmpPath = `${this.tokenFilePath}.tmp`;
+    fs.writeFileSync(tmpPath, token, { mode: 0o600 });
+    fs.renameSync(tmpPath, this.tokenFilePath);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub until Task 2.8
