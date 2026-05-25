@@ -304,6 +304,11 @@ describe("scheduleRefresh()", () => {
 
   it("test_timerFiresAtCorrectDelay_exchangesAndPersists: timer fires at (expires_in-300)*1000ms and updates state", async () => {
     const client = await getBootstrappedClient();
+    // Capture the updateTenants spy BEFORE the timer fires so the call history
+    // baseline is clean. In Vitest 4.x, vi.spyOn on an already-spied method
+    // returns the same spy instance — clearing it here gives us a fresh baseline.
+    const updateTenantsSpy = vi.spyOn(client as unknown as TestableClient, "updateTenants");
+    updateTenantsSpy.mockClear();
     // Reset post mock call count to focus on the scheduled refresh call
     vi.mocked(axios.post).mockClear();
     vi.mocked(axios.post).mockResolvedValueOnce({
@@ -329,10 +334,9 @@ describe("scheduleRefresh()", () => {
       "rt_rotated_003",
       { mode: 0o600 }
     );
-    // updateTenants should NOT have been called during scheduled refresh
-    // In Vitest 4.x, vi.spyOn returns the same accumulated spy, so clear call history before asserting
-    const updateTenantsSpy = vi.spyOn(client as unknown as TestableClient, "updateTenants");
-    updateTenantsSpy.mockClear();
+    // updateTenants must NOT have been called during scheduled refresh
+    // (spy was cleared before the timer fired, so any call during the callback
+    // would be recorded and cause this assertion to fail)
     expect(updateTenantsSpy).not.toHaveBeenCalled();
   });
 
