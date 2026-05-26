@@ -30,11 +30,14 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 | Term | Definition | Aliases to avoid |
 |---|---|---|
 | **Xero** | The accounting/payroll SaaS this server integrates with via `xero-node`. | Xero Accounting (qualify only when distinguishing from Xero Payroll) |
-| **Custom Connection** | A Xero OAuth 2.0 client-credentials grant scoped to a single Xero organisation. Authenticated with `XERO_CLIENT_ID` + `XERO_CLIENT_SECRET`. The default auth mode for this server. | client credentials connection |
-| **Bearer Token** | A pre-issued OAuth access token passed via `XERO_CLIENT_BEARER_TOKEN`. Used when an external flow (e.g. PKCE) has already obtained a token; takes precedence over Custom Connection vars. | access token (ambiguous), API key |
-| **Scope** | A permission string a Xero token carries (e.g. `accounting.invoices`, `payroll.timesheets`). The server requests a default set; `XERO_SCOPES` overrides. | permission, role |
-| **Scopes V1 / V2** | Two scope vocabularies in `xero-client.ts`: V1 = legacy bundled scopes (e.g. `accounting.transactions`), V2 = granular scopes (e.g. `accounting.invoices`, `accounting.payments`). The client tries V1 first and falls back to V2. | old/new scopes (use V1/V2 verbatim) |
-| **Tenant** | A Xero organisation. `XeroClient.tenants[]` carries the list; `tenantId` selects which to call. A Custom Connection has exactly one tenant. | org (use "tenant" in code; "organisation" in prose is fine) |
+| **Custom Connection** | A Xero OAuth 2.0 client-credentials grant scoped to a single Xero organisation. Authenticated with `XERO_CLIENT_ID` + `XERO_CLIENT_SECRET`. Only available in UK, US, and NZ. Removed from this fork by ADR 0001. | client credentials connection |
+| **Bearer Token** | A pre-issued OAuth access token passed via `XERO_CLIENT_BEARER_TOKEN`. Used when an external flow (e.g. PKCE) has already obtained a token. Removed from this fork by ADR 0001. | access token (ambiguous), API key |
+| **Web Application** | A Xero OAuth 2.0 app type (available to all regions) that uses the `authorization_code` grant. Produces a refresh token that can be exchanged for access tokens. The only app type available to operators outside UK/US/NZ. | "web app" (acceptable in prose, but use full term in code and spec) |
+| **Refresh Token mode** | The single auth mode in `xero-client.ts`. Authenticates by exchanging a stored refresh token for an access token via `POST /connect/token` with `grant_type=refresh_token`. Replaces Custom Connection mode and Bearer Token mode. | "OAuth2 mode" (too vague) |
+| **Token file** | The local file storing the current (most-recently-rotated) refresh token. Defaults to `~/.xero-mcp/refresh_token`; overridable via `XERO_TOKEN_FILE`. Written with `0600` permissions. | "token cache" (implies access token caching, which is out of scope) |
+| **Token rotation** | Xero's behaviour of issuing a new refresh token and immediately invalidating the old one on every token exchange. The server must persist the new token after every exchange to avoid startup failures on subsequent restarts. | "token refresh" (too generic; use "token exchange" for the HTTP call and "token rotation" for Xero's invalidate-and-reissue behaviour) |
+| **Scope** | A permission string a Xero token carries (e.g. `accounting.invoices`, `payroll.timesheets`). Scopes are configured on the Xero Web Application, not by this server. | permission, role |
+| **Tenant** | A Xero organisation. `XeroClient.tenants[]` carries the list; `tenantId` selects which to call. A Web Application connection has one tenant per authorised org. | org (use "tenant" in code; "organisation" in prose is fine) |
 | **Demo Company** | Xero's sandbox tenant with pre-loaded sample data, switchable from the top-left Xero dropdown. The recommended target for any test mutation. | test org, sandbox |
 
 ## Fork
@@ -43,8 +46,8 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 |---|---|---|
 | **Upstream** | The original [`XeroAPI/xero-mcp-server`](https://github.com/XeroAPI/xero-mcp-server) repository. We track its `main`. | parent, source repo |
 | **Fork charter** | The narrow scope this fork exists to serve: security and deployment improvements layered onto upstream. Captured in `.specs/PRD.md`. | mission, mandate |
-| **Org-specific** | A change that is valuable only to us and so belongs in this fork, not as an upstream PR. See `.specs/PRD.md` § 8 for the decision rule. | local, private |
-| **Upstream sync** | The merge cadence pulling `upstream/main` into our `main`. Documented in `.specs/REPO.md` § Upstream Sync. | merge, rebase (we merge, not rebase) |
+| **Org-specific** | A change that is valuable only to us and so belongs in this fork, not as an upstream PR. See `.specs/PRD.md` section 8 for the decision rule. | local, private |
+| **Upstream sync** | The merge cadence pulling `upstream/main` into our `main`. Documented in `.specs/REPO.md` section Upstream Sync. | merge, rebase (we merge, not rebase) |
 
 ---
 

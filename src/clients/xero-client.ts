@@ -1,9 +1,11 @@
 import axios, { AxiosError } from "axios";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import dotenv from "dotenv";
 import {
   IXeroClientConfig,
   Organisation,
-  TokenSet,
   XeroClient,
 } from "xero-node";
 
@@ -13,12 +15,9 @@ dotenv.config();
 
 const client_id = process.env.XERO_CLIENT_ID;
 const client_secret = process.env.XERO_CLIENT_SECRET;
-const bearer_token = process.env.XERO_CLIENT_BEARER_TOKEN;
-const grant_type = "client_credentials";
 
-if (!bearer_token && (!client_id || !client_secret)) {
-  throw Error("Environment Variables not set - please check your .env file");
-}
+if (!client_id) throw new Error("XERO_CLIENT_ID is required");
+if (!client_secret) throw new Error("XERO_CLIENT_SECRET is required");
 
 abstract class MCPXeroClient extends XeroClient {
   public tenantId: string;
@@ -74,158 +73,155 @@ abstract class MCPXeroClient extends XeroClient {
   }
 }
 
-class CustomConnectionsXeroClient extends MCPXeroClient {
+class RefreshTokenXeroClient extends MCPXeroClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
+  private readonly tokenFilePath: string;
+  private currentRefreshToken: string = "";
+  private initialised = false;
+  private authPromise: Promise<void> | null = null;
 
-  // Legacy scopes (deprecated but still supported for existing apps)
-  private readonly XERO_DEFAULT_AUTH_SCOPES_V1 = [
-    "accounting.transactions",
-    "accounting.contacts",
-    "accounting.settings",
-    "accounting.reports.read",
-    "payroll.settings",
-    "payroll.employees",
-    "payroll.timesheets",
-  ].join(" ");
-
-  // Granular scopes (required for new apps)
-  private readonly XERO_DEFAULT_AUTH_SCOPES_V2 = [
-    "accounting.invoices",
-    "accounting.payments",
-    "accounting.banktransactions",
-    "accounting.manualjournals",
-    "accounting.reports.aged.read",
-    "accounting.reports.balancesheet.read",
-    "accounting.reports.profitandloss.read",
-    "accounting.reports.trialbalance.read",
-    "accounting.contacts",
-    "accounting.settings",
-    "payroll.settings",
-    "payroll.employees",
-    "payroll.timesheets",
-  ].join(" ");
-
-  constructor(config: {
-    clientId: string;
-    clientSecret: string;
-    grantType: string;
-  }) {
-    super(config);
+  constructor(config: { clientId: string; clientSecret: string }) {
+    super({ clientId: config.clientId, clientSecret: config.clientSecret });
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
+    this.tokenFilePath =
+      process.env.XERO_TOKEN_FILE ||
+      path.join(os.homedir(), ".xero-mcp", "refresh_token");
   }
 
-  private formatTokenError(error: unknown, context: string): Error {
-    const axiosError = error as AxiosError;
-    const data = axiosError.response?.data;
-    const message =
-      typeof data === "object" ? JSON.stringify(data) : data || axiosError.message;
-    return new Error(`Failed to get Xero token${context}: ${message}`);
-  }
-
-  public async getClientCredentialsToken(): Promise<TokenSet> {
-    // If XERO_SCOPES is set, use that
-    if (process.env.XERO_SCOPES) {                                                                                                                                                     
-      try {
-        return await this.requestToken(process.env.XERO_SCOPES);
-      } catch (envError) {
-        throw this.formatTokenError(envError, " with XERO_SCOPES");
-      }
-    }
-
-    // Else if XERO_SCOPES is not set, try V1 scopes first (for existing apps), fallback to V2 scopes (for new apps) only on invalid_scope error
+  private resolveRefreshToken(): string {
     try {
-      return await this.requestToken(this.XERO_DEFAULT_AUTH_SCOPES_V1);
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      const isInvalidScope =
-        axiosError.response?.status === 400 &&
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (axiosError.response?.data as any)?.error === "invalid_scope";
-
-      if (!isInvalidScope) {
-        throw this.formatTokenError(error, " with V1 scopes");
-      }
-
-      try {
-        return await this.requestToken(this.XERO_DEFAULT_AUTH_SCOPES_V2);
-      } catch (v2Error) {
-        throw this.formatTokenError(v2Error, " with V2 scopes");
-      }
+      const token = fs.readFileSync(this.tokenFilePath, "utf-8").trim();
+      if (token) return token;
+    } catch {
+      // File does not exist or is unreadable — fall through to env var.
     }
+
+    const envToken = process.env.XERO_REFRESH_TOKEN;
+    if (envToken) return envToken;
+
+    throw new Error(
+      "No refresh token found. Set XERO_REFRESH_TOKEN to a valid Xero refresh token, or obtain one at https://api-explorer.xero.com",
+    );
   }
 
-  private async requestToken(scope: string): Promise<TokenSet> {
+  private async exchangeToken(refreshToken: string): Promise<{
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+  }> {
     const credentials = Buffer.from(
       `${this.clientId}:${this.clientSecret}`,
     ).toString("base64");
 
-    const response = await axios.post(
-      "https://identity.xero.com/connect/token",
-      `grant_type=client_credentials&scope=${encodeURIComponent(scope)}`,
-      {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
+    try {
+      const response = await axios.post(
+        "https://identity.xero.com/connect/token",
+        `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+        {
+          headers: {
+            Authorization: `Basic ${credentials}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
         },
-      },
-    );
+      );
 
-    // Get the tenant ID from the connections endpoint
-    const token = response.data.access_token;
-    const connectionsResponse = await axios.get(
-      "https://api.xero.com/connections",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      },
-    );
+      const { access_token, refresh_token, expires_in, token_type } =
+        response.data as {
+          access_token?: string;
+          refresh_token?: string;
+          expires_in?: number | null;
+          token_type: string;
+        };
 
-    if (connectionsResponse.data && connectionsResponse.data.length > 0) {
-      this.tenantId = connectionsResponse.data[0].tenantId;
+      if (!access_token || !refresh_token) {
+        throw new Error(
+          "Xero response missing required token fields",
+        );
+      }
+
+      if (expires_in === undefined || expires_in === null) {
+        throw new Error(
+          "Xero response missing expires_in — cannot schedule token refresh",
+        );
+      }
+
+      return { access_token, refresh_token, expires_in, token_type };
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        const data = error.response?.data as
+          | Record<string, unknown>
+          | undefined;
+        const xeroError = data ? JSON.stringify(data) : error.message;
+        throw new Error(
+          `Refresh token is invalid or expired. Obtain a new one at https://api-explorer.xero.com. Xero error: ${xeroError}`,
+        );
+      }
+      throw error;
     }
-
-    return response.data;
   }
 
-  public async authenticate() {
-    const tokenResponse = await this.getClientCredentialsToken();
+  private persistRefreshToken(token: string): void {
+    const dir = path.dirname(this.tokenFilePath);
+    if (!fs.existsSync(dir)) {
+      throw new Error(
+        `Token file directory does not exist: ${dir}. Create it with: mkdir -p ${dir}`,
+      );
+    }
+    const tmpPath = `${this.tokenFilePath}.tmp`;
+    fs.writeFileSync(tmpPath, token, { mode: 0o600 });
+    fs.renameSync(tmpPath, this.tokenFilePath);
+  }
 
+  private scheduleRefresh(expiresIn: number): void {
+    const delayMs = (expiresIn - 300) * 1000;
+    setTimeout(async () => {
+      try {
+        const tokenData = await this.exchangeToken(this.currentRefreshToken);
+        this.persistRefreshToken(tokenData.refresh_token);
+        this.currentRefreshToken = tokenData.refresh_token;
+        this.setTokenSet({
+          access_token: tokenData.access_token,
+          expires_in: tokenData.expires_in,
+          token_type: tokenData.token_type,
+        });
+        this.scheduleRefresh(tokenData.expires_in);
+      } catch (error) {
+        console.error("Scheduled token refresh failed:", error);
+        process.exit(1);
+      }
+    }, delayMs).unref();
+  }
+
+  public async authenticate(): Promise<void> {
+    if (this.initialised) return;
+    // Concurrency guard: share a single in-flight promise so concurrent callers
+    // do not each run the full startup flow independently.
+    if (this.authPromise) return this.authPromise;
+    this.authPromise = this._doAuthenticate();
+    return this.authPromise;
+  }
+
+  private async _doAuthenticate(): Promise<void> {
+    const refreshToken = this.resolveRefreshToken();
+    const tokenData = await this.exchangeToken(refreshToken);
+    this.persistRefreshToken(tokenData.refresh_token);
+    this.currentRefreshToken = tokenData.refresh_token;
     this.setTokenSet({
-      access_token: tokenResponse.access_token,
-      expires_in: tokenResponse.expires_in,
-      token_type: tokenResponse.token_type,
+      access_token: tokenData.access_token,
+      expires_in: tokenData.expires_in,
+      token_type: tokenData.token_type,
     });
-  }
-}
-
-class BearerTokenXeroClient extends MCPXeroClient {
-  private readonly bearerToken: string;
-
-  constructor(config: { bearerToken: string }) {
-    super();
-    this.bearerToken = config.bearerToken;
-  }
-
-  async authenticate(): Promise<void> {
-    this.setTokenSet({
-      access_token: this.bearerToken,
-    });
-
     await this.updateTenants();
+    this.scheduleRefresh(tokenData.expires_in);
+    this.initialised = true;
   }
 }
 
-export const xeroClient = bearer_token
-  ? new BearerTokenXeroClient({
-      bearerToken: bearer_token,
-    })
-  : new CustomConnectionsXeroClient({
-      clientId: client_id!,
-      clientSecret: client_secret!,
-      grantType: grant_type,
-    });
+export const xeroClient = new RefreshTokenXeroClient({
+  clientId: client_id,
+  clientSecret: client_secret,
+});

@@ -81,7 +81,7 @@ A subset of CLAUDE.md's engineering principles that genuinely bind decisions in 
 
 ## 7. Features
 
-(empty — populate as features land via the refinery → foundry → planner → mill pipeline)
+- **001-oauth2-web-app-auth** (backend) — Replace Custom Connection + Bearer Token auth with a single Refresh Token mode that works with Xero Web Applications (available to all regions).
 
 ---
 
