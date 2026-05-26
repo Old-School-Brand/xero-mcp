@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import express from "express";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
+import { getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { xeroClient } from "../clients/xero-client.js";
 import { loadSettings } from "./settings.js";
 import { createLogger, createHttpLogger } from "./logging.js";
 import { createHealthRouter } from "./health.js";
 import { SessionManager, SessionCapError } from "./sessions.js";
+import { buildAuth } from "./auth/build.js";
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,6 +24,25 @@ async function main() {
   await xeroClient.authenticate();
   xeroReady = true;
 
+  // Auth setup — local vs non-local
+  let verifier: ReturnType<typeof buildAuth>["verifier"];
+  let requiredScopes: string[];
+
+  if (settings.ENVIRONMENT === "local") {
+    const auth = buildAuth(settings);
+    verifier = auth.verifier;
+    requiredScopes = auth.requiredScopes;
+  } else {
+    // Non-local: Redis + Entra setup added in Task 3.4
+    // For now this branch will throw; full implementation in Task 3.4
+    throw new Error("Non-local mode not yet implemented — see Task 3.4");
+  }
+
+  const resourceMetadataUrl =
+    settings.ENVIRONMENT !== "local"
+      ? getOAuthProtectedResourceMetadataUrl(new URL((settings as { MCP_SERVER_URL: string }).MCP_SERVER_URL))
+      : undefined;
+
   const sessionManager = new SessionManager({
     maxSessions: settings.MCP_MAX_SESSIONS,
     idleTimeoutMs: settings.MCP_SESSION_IDLE_TIMEOUT_SECONDS * 1000,
@@ -35,16 +57,15 @@ async function main() {
   const healthRouter = createHealthRouter({ isXeroReady: () => xeroReady });
   app.use(healthRouter);
 
-  // /mcp handler — Phase 1: no auth
+  // /mcp handler with bearer auth
   const mcpHandler: express.RequestHandler = async (req, res) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (!sessionId) {
       // New session — must be an initialize request
       try {
-        const { sessionId: newId, transport } = await sessionManager.createSession();
+        const { transport } = await sessionManager.createSession();
         await transport.handleRequest(req, res, req.body as unknown);
-        logger.info({ sessionId: newId }, "session_request_handled");
       } catch (err) {
         if (err instanceof SessionCapError) {
           res.status(503).json({ error: "session_cap_reached" });
@@ -66,9 +87,21 @@ async function main() {
     }
   };
 
-  app.post("/mcp", mcpHandler);
-  app.get("/mcp", mcpHandler);
-  app.delete("/mcp", mcpHandler);
+  app.post(
+    "/mcp",
+    requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl }),
+    mcpHandler,
+  );
+  app.get(
+    "/mcp",
+    requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl }),
+    mcpHandler,
+  );
+  app.delete(
+    "/mcp",
+    requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl }),
+    mcpHandler,
+  );
 
   sessionManager.startEvictionTimer();
 
@@ -81,7 +114,6 @@ async function main() {
 }
 
 main().catch((err: unknown) => {
-  // Create a fallback logger if main() fails before the logger is set up
   const fallbackLogger = createLogger("fatal");
   fallbackLogger.fatal(err, "Fatal startup error");
   process.exit(1);
