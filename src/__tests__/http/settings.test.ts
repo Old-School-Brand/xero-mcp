@@ -8,14 +8,23 @@
  *
  * Test plan:
  *   - test_local_missing_dev_bearer_throws_naming_field: loadSettings() with ENVIRONMENT=local and no DEV_BEARER_TOKEN throws ZodError naming DEV_BEARER_TOKEN
- *   - test_nonlocal_missing_entra_secret_throws_naming_field: loadSettings() with ENVIRONMENT=development and no ENTRA_CLIENT_SECRET throws ZodError naming ENTRA_CLIENT_SECRET
+ *   - test_nonlocal_missing_entra_tenant_id_throws_naming_field: loadSettings() with ENVIRONMENT=development and no ENTRA_TENANT_ID throws ZodError naming ENTRA_TENANT_ID
  *   - test_valid_local_settings_returns_local_settings: loadSettings() with valid local env returns LocalSettings with ENVIRONMENT === "local"
  *   - test_valid_nonlocal_settings_returns_nonlocal_settings: loadSettings() with all non-local fields returns NonLocalSettings
  *   - test_defaults_applied: loadSettings() applies defaults for optional fields
+ *
+ * Note: test_nonlocal_missing_entra_secret_throws_naming_field renamed to
+ * test_nonlocal_missing_entra_tenant_id_throws_naming_field (iteration 3 fix) — ENTRA_CLIENT_SECRET
+ * was removed from the schema (it was validated but never consumed; token verification uses Entra's
+ * JWKS public keys). ENTRA_TENANT_ID is now the tested required field. See review.md finding #2.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ZodError } from "zod";
+
+beforeEach(() => {
+  vi.resetModules();
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -39,11 +48,10 @@ describe("loadSettings", () => {
     }
   });
 
-  it("test_nonlocal_missing_entra_secret_throws_naming_field", async () => {
+  it("test_nonlocal_missing_entra_tenant_id_throws_naming_field", async () => {
     vi.stubEnv("ENVIRONMENT", "development");
-    vi.stubEnv("ENTRA_TENANT_ID", "tenant-id");
+    vi.stubEnv("ENTRA_TENANT_ID", "");
     vi.stubEnv("ENTRA_CLIENT_ID", "client-id");
-    vi.stubEnv("ENTRA_CLIENT_SECRET", "");
     vi.stubEnv("MCP_SERVER_URL", "https://example.com");
     vi.stubEnv("ENTRA_REQUIRED_SCOPES", "mcp");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
@@ -57,7 +65,7 @@ describe("loadSettings", () => {
       expect(err).toBeInstanceOf(ZodError);
       const zodErr = err as ZodError;
       const paths = zodErr.issues.map((i) => i.path.join("."));
-      expect(paths).toContain("ENTRA_CLIENT_SECRET");
+      expect(paths).toContain("ENTRA_TENANT_ID");
     }
   });
 
@@ -78,7 +86,6 @@ describe("loadSettings", () => {
     vi.stubEnv("ENVIRONMENT", "development");
     vi.stubEnv("ENTRA_TENANT_ID", "tenant-123");
     vi.stubEnv("ENTRA_CLIENT_ID", "client-456");
-    vi.stubEnv("ENTRA_CLIENT_SECRET", "secret-789");
     vi.stubEnv("MCP_SERVER_URL", "https://xero-mcp.example.com");
     vi.stubEnv("ENTRA_REQUIRED_SCOPES", "mcp");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
@@ -89,7 +96,7 @@ describe("loadSettings", () => {
     expect(settings.ENVIRONMENT).toBe("development");
     if (settings.ENVIRONMENT !== "local") {
       expect(settings.ENTRA_TENANT_ID).toBe("tenant-123");
-      expect(settings.ENTRA_CLIENT_SECRET).toBe("secret-789");
+      expect(settings.ENTRA_CLIENT_ID).toBe("client-456");
     }
   });
 

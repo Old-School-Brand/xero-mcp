@@ -1,6 +1,6 @@
 # Todo: HTTP Transport and Entra OAuth
 **Layer:** backend
-**Status:** In Progress
+**Status:** Complete
 **Last updated:** 2026-05-26
 
 ## Implementation Tasks
@@ -40,7 +40,7 @@ Goal: `npm install` adds new deps; `npm run build` produces `dist/http/server.js
 - [x] **Task 1.3** — `src/http/settings.ts` — Zod env schema with discriminated union
   - File(s): `src/http/settings.ts`, `src/__tests__/http/settings.test.ts`
   - What to do: Export `loadSettings()` that first calls `dotenv.config()` (idempotent — calling it after upstream's `xero-client.ts` already loaded `.env` is a no-op, and calling it from standalone tests of `settings.ts` works without depending on import order), then calls `z.object({ ENVIRONMENT: z.enum(["local", "development", "production"]), MCP_BIND_HOST: z.string().default("0.0.0.0"), MCP_BIND_PORT: z.coerce.number().default(8000), LOG_LEVEL: z.string().default("info"), MCP_SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().default(1800), MCP_MAX_SESSIONS: z.coerce.number().default(100), DEV_BEARER_TOKEN: z.string().optional(), ENTRA_TENANT_ID: z.string().optional(), ENTRA_CLIENT_ID: z.string().optional(), ENTRA_CLIENT_SECRET: z.string().optional(), MCP_SERVER_URL: z.string().optional(), ENTRA_REQUIRED_SCOPES: z.string().optional(), REDIS_URL: z.string().optional() }).superRefine(...)` where the `superRefine` adds an issue for each missing field: `DEV_BEARER_TOKEN` when `ENVIRONMENT=local`; the six Entra/Redis fields when `ENVIRONMENT!="local"`. Export discriminated types `LocalSettings` (guarantees `DEV_BEARER_TOKEN: string`) and `NonLocalSettings` (guarantees all six Entra/Redis fields as `string`), and `Settings = LocalSettings | NonLocalSettings`. `loadSettings()` reads from `process.env` and parses. On parse failure, throw the `ZodError` directly.
-  - Acceptance: Test `loadSettings()` with `vi.stubEnv`. Given `ENVIRONMENT=local` and no `DEV_BEARER_TOKEN`, `loadSettings()` throws a `ZodError` whose message contains `"DEV_BEARER_TOKEN"`. Given `ENVIRONMENT=development` and `ENTRA_CLIENT_SECRET` absent, throws naming `"ENTRA_CLIENT_SECRET"`. Given all valid local vars, returns a `LocalSettings` object with `ENVIRONMENT === "local"` narrowed.
+  - Acceptance: Test `loadSettings()` with `vi.stubEnv`. Given `ENVIRONMENT=local` and no `DEV_BEARER_TOKEN`, `loadSettings()` throws a `ZodError` whose message contains `"DEV_BEARER_TOKEN"`. Given `ENVIRONMENT=development` and `ENTRA_TENANT_ID` absent, throws naming `"ENTRA_TENANT_ID"`. Given all valid local vars, returns a `LocalSettings` object with `ENVIRONMENT === "local"` narrowed. (Note: `ENTRA_CLIENT_SECRET` was removed from the schema in build iteration 3 — see ADR-0002.)
   - Depends on: Task 1.1
   - Examples: Example 17, Example 18
   - Completed: 2026-05-26
@@ -147,19 +147,22 @@ green.
   - Completed: 2026-05-26
   - Tests: src/__tests__/http/auth/build.test.ts
 
-- [ ] **Task 3.4** — Wire Redis startup probe, Entra JWKS probe, and `mcpAuthRouter` into `src/http/server.ts`
+- [x] **Task 3.4** — Wire Redis startup probe, Entra JWKS probe, and `mcpAuthRouter` into `src/http/server.ts`
   - File(s): `src/http/server.ts`
   - What to do: In the non-local startup path (after `xeroReady = true`): (1) Create Redis client `createClient({ url: settings.REDIS_URL })` → `await redisClient.connect()` → `await redisClient.ping()` — on failure throw `new Error(\`Redis unreachable: ${settings.REDIS_URL}\`)`. (2) Call `buildAuth(settings, redisClient)` — returns `{ provider, verifier, requiredScopes }`. (3) Warm the Entra JWKS: import `STARTUP_PROBE_JWT` from `./auth/entra-verifier.js` and call `verifier.verifyAccessToken(STARTUP_PROBE_JWT)` inside a try/catch. If it throws `InvalidTokenError` (from `@modelcontextprotocol/sdk/server/auth/errors.js`), the probe succeeded — the JWKS endpoint was reached and the keyset was parsed; the structurally-valid sentinel was correctly rejected. If it throws **any other error** (a non-`JOSEError` propagated by the selective catch in `EntraVerifier.verifyAccessToken` — typically `TypeError("fetch failed")` for network failures, DNS resolution errors, or HTTP error responses from the JWKS endpoint), rethrow as `new Error(\`Entra JWKS unreachable: https://login.microsoftonline.com/${settings.ENTRA_TENANT_ID}/discovery/v2.0/keys\`)`. The discriminator is the `InvalidTokenError` class — see Task 3.2 for why the sentinel must be a structurally-valid JWT (an arbitrary string like `"mcp-startup-probe"` would short-circuit at `jose`'s structural parse and silently pass even when Entra is unreachable). (4) When `provider` is present, mount `app.use(mcpAuthRouter({ provider, issuerUrl: new URL(settings.MCP_SERVER_URL), baseUrl: new URL(settings.MCP_SERVER_URL), resourceServerUrl: new URL(settings.MCP_SERVER_URL), scopesSupported: requiredScopes, clientRegistrationOptions: { clientSecretExpirySeconds: 60 * 60 * 24 * 365, clientIdGeneration: false } }))` before the `/mcp` route (but after health router). Note: `clientIdGeneration: false` because `RedisOAuthClientsStore` is the sole owner of `client_id` generation. No `clientsStore` in `clientRegistrationOptions` — the router reads it from `provider.clientsStore` (overridden in `buildAuth` via `Object.defineProperty`). Import `createClient` from `"redis"`, `mcpAuthRouter` from `@modelcontextprotocol/sdk/server/auth/router.js`, `InvalidTokenError` from `@modelcontextprotocol/sdk/server/auth/errors.js`, `STARTUP_PROBE_JWT` from `./auth/entra-verifier.js`.
-  - Acceptance: Given `ENVIRONMENT=development` and `REDIS_URL=redis://does-not-resolve:6379`, process exits non-zero and log contains `"Redis unreachable"`. Given unreachable Entra tenant, process exits non-zero and log contains `"Entra JWKS unreachable"`. Given `ENVIRONMENT=development` and missing `ENTRA_CLIENT_SECRET`, `loadSettings()` throws naming `"ENTRA_CLIENT_SECRET"` before any network call.
+  - Acceptance: Given `ENVIRONMENT=development` and `REDIS_URL=redis://does-not-resolve:6379`, process exits non-zero and log contains `"Redis unreachable"`. Given unreachable Entra tenant, process exits non-zero and log contains `"Entra JWKS unreachable"`. Given `ENVIRONMENT=development` and missing `ENTRA_TENANT_ID`, `loadSettings()` throws naming `"ENTRA_TENANT_ID"` before any network call.
   - Depends on: Task 2.3, Task 3.3
   - Examples: Example 15, Example 16, Example 17
+  - Completed: 2026-05-26
 
-- [ ] **Task 3.5** — Integration test: `src/__tests__/http/server.test.ts`
+- [x] **Task 3.5** — Integration test: `src/__tests__/http/server.test.ts`
   - File(s): `src/__tests__/http/server.test.ts`
   - What to do: Write integration tests for `server.ts` using `supertest`. Mock at module boundaries: `vi.mock("../../clients/xero-client.js")` (stub `authenticate: vi.fn().mockResolvedValue(undefined)`), `vi.mock("../../tools/tool-factory.js")` (no-op), `vi.mock("../http/sessions.js")` (stub `SessionManager` so `createSession` resolves with a fake `{ sessionId: "test-session-id", transport: { handleRequest: vi.fn() } }` and `getSession` returns the same). Test cases: (1) `GET /livez` returns 200 `{"status":"ok"}` in local mode. (2) `POST /mcp` without `Authorization` header returns 401 with `WWW-Authenticate` header. (3) `POST /mcp` with `Authorization: Bearer <correct>` and `initialize` body returns 200 with `Mcp-Session-Id: test-session-id`. (4) `POST /mcp` with `Authorization: Bearer <correct>` and `Mcp-Session-Id: unknown-id` returns 404. (5) When `sessionManager.createSession()` throws `SessionCapError`, returns 503 `{"error":"session_cap_reached"}`.
   - Acceptance: All five test cases pass. `npm run test` shows green for `src/__tests__/http/server.test.ts`. No regression in `src/__tests__/clients/xero-client.test.ts`.
   - Depends on: Task 3.4
   - Examples: Example 1, Example 2, Example 3, Example 9, Example 10
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/server.test.ts
 
 ---
 
@@ -170,24 +173,27 @@ still green. No new source files.
 
 ---
 
-- [ ] **Task 4.1** — Flip ADR-0002 and ADR-0003 from Draft to Accepted
+- [x] **Task 4.1** — Flip ADR-0002 and ADR-0003 from Draft to Accepted
   - File(s): `.specs/adr/0002-mcp-http-transport-and-oauth.md`, `.specs/adr/0003-oauth-state-in-redis.md`
   - What to do: Change `Status: Draft` to `Status: Accepted` in both files. In ADR-0002, add a note under Consequences confirming that Express 5 (not 4) was used since the SDK's peer dependency is `express@^5.2.1`. In ADR-0003, confirm that `RedisOAuthClientsStore` uses a narrow Redis interface (`get`/`set`) rather than the full `RedisClientType` to keep the class independently testable. No other content changes unless the build surfaced discrepancies with the written decisions.
   - Acceptance: Both files have `Status: Accepted`. No other spec files are touched.
   - Depends on: Task 3.5
+  - Completed: 2026-05-26
 
-- [ ] **Task 4.2** — `.env.example` — Append OSB HTTP-mode section
+- [x] **Task 4.2** — `.env.example` — Append OSB HTTP-mode section
   - File(s): `.env.example`
   - What to do: Append the OSB HTTP-mode block below the existing three Xero entries (which must remain byte-for-byte identical). The appended block is exactly as specified in design.md § 11, including all comments and blank-line separators. Verify by running `head -14 .env.example` and confirming the upstream block is unchanged.
   - Acceptance: `git diff .env.example` shows zero changes to lines 1-14 (the upstream block); the appended OSB section contains all 13 variables listed in FR-22; `npm run build` still exits 0.
   - Depends on: Task 4.1
   - Examples: (documentation — no test coverage)
+  - Completed: 2026-05-26
 
-- [ ] **Task 4.3** — `src/__tests__/http/` — Final cross-suite regression pass
+- [x] **Task 4.3** — `src/__tests__/http/` — Final cross-suite regression pass
   - File(s): (no new files — run existing suite)
   - What to do: Run `npx vitest run src/__tests__/` and confirm all suites pass: `clients/xero-client.test.ts`, `http/settings.test.ts`, `http/logging.test.ts`, `http/sessions.test.ts`, `http/health.test.ts`, `http/auth/local-verifier.test.ts`, `http/auth/entra-verifier.test.ts`, `http/auth/redis-clients-store.test.ts`, `http/auth/build.test.ts`, `http/server.test.ts`. Fix any test isolation issues (e.g., `vi.resetModules()` missing in a `beforeEach`).
   - Acceptance: `npx vitest run src/__tests__/` exits 0 with all suites green. No test in the clients suite is broken by the new HTTP tests.
   - Depends on: Task 4.2
+  - Completed: 2026-05-26
 
 ---
 
@@ -197,18 +203,20 @@ Goal: Both entry points compile cleanly; type-check passes; lint passes.
 
 ---
 
-- [ ] **Task 5.1** — Confirm both compiled entry points exist and are executable
+- [x] **Task 5.1** — Confirm both compiled entry points exist and are executable
   - File(s): (verification only)
   - What to do: Run `npm run build`. Verify: `ls -la dist/index.js dist/http/server.js` — both exist and have `x` permission bit set. Run `node dist/index.js --help 2>&1 || true` (should not crash immediately on missing env, since xeroClient throws before the listen call — acceptable). Run `node -e "require('./dist/http/server.js')"` — should not syntax-error (will likely throw on missing env vars, which is correct behaviour).
   - Acceptance: `npm run build` exits 0; both `dist/index.js` and `dist/http/server.js` have executable permission; `git diff -- src/ ':!src/http'` shows zero changes.
   - Depends on: Task 4.3
   - Examples: Example 19, Example 20
+  - Completed: 2026-05-26
 
-- [ ] **Task 5.2** — Lint and type-check pass
-  - File(s): (verification only)
+- [x] **Task 5.2** — Lint and type-check pass
+  - File(s): (verification only); `eslint.config.js` (additive test-file override)
   - What to do: Run `npm run lint` and `npx tsc --noEmit`. Fix any ESLint or TypeScript errors that surface (expected: none if the individual tasks were type-clean, but verify explicitly).
   - Acceptance: `npm run lint` exits 0 with no errors. `npx tsc --noEmit` exits 0.
   - Depends on: Task 5.1
+  - Completed: 2026-05-26
 
 ---
 

@@ -31,14 +31,20 @@ export class EntraVerifier implements OAuthTokenVerifier {
   private readonly issuer: string;
   private readonly audience: string;
   private readonly requiredScopes: string[];
+  private readonly _jwksUrl: string;
 
   constructor({ tenantId, clientId, requiredScopes }: EntraVerifierOptions) {
-    const jwksUrl = `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`;
+    this._jwksUrl = `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`;
     // Store JWKS as instance field — same fetch path at startup (probe) and runtime
-    this.jwks = createRemoteJWKSet(new URL(jwksUrl));
+    this.jwks = createRemoteJWKSet(new URL(this._jwksUrl));
     this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
     this.audience = `api://${clientId}`;
     this.requiredScopes = requiredScopes;
+  }
+
+  /** The JWKS endpoint URL — single source of truth for use in error messages. */
+  get jwksUrl(): string {
+    return this._jwksUrl;
   }
 
   async verifyAccessToken(token: string): Promise<AuthInfo> {

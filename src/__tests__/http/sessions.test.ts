@@ -16,8 +16,16 @@
  *   - test_evict_idle_sessions_removes_stale_entries: evictIdleSessions() removes entries older than idleTimeoutMs
  *   - test_create_session_returns_session_id_and_transport: createSession() returns sessionId and transport
  *   - test_get_session_updates_last_activity: getSession() updates lastActivity timestamp
+ *
+ * Note: the StreamableHTTPServerTransport mock was refactored (finding #7 in review.md) to close
+ * over the sessionId variable already captured at construction rather than using `const self = this`.
+ * This allowed reverting the blanket `@typescript-eslint/no-this-alias` override in eslint.config.js.
+ * Exempted from test-immutability rule: this is a lint-cleanliness refactor; all assertions are unchanged.
+ *
+ * New test (iteration 3 finding #5): test_mcp_server_constructed_with_package_identity — AC-19
  */
 
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import pino from "pino";
 
@@ -27,11 +35,17 @@ const capturedCallbacks: Map<string, (id: string) => void> = new Map();
 // Track mock transport instances so we can inspect their close() calls
 const mockTransports: Map<string, { close: ReturnType<typeof vi.fn>; handleRequest: ReturnType<typeof vi.fn>; sessionId: string | undefined }> = new Map();
 
+// Track McpServer constructor arguments for AC-19 assertion
+const mcpServerConstructorArgs: Array<{ name: string; version: string }> = [];
+
 vi.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
   return {
     McpServer: class MockMcpServer {
       connect = vi.fn().mockResolvedValue(undefined);
       close = vi.fn().mockResolvedValue(undefined);
+      constructor(opts: { name: string; version: string }) {
+        mcpServerConstructorArgs.push(opts);
+      }
     },
   };
 });
@@ -52,11 +66,12 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
         }
 
         this.handleRequest = vi.fn().mockResolvedValue(undefined);
-        const self = this;
+        // Close over sessionId (captured above) instead of using `const self = this`
+        // to avoid the @typescript-eslint/no-this-alias lint rule.
         this.close = vi.fn().mockImplementation(() => {
           // Simulate the SDK firing onsessionclosed when close() is called
-          if (self.sessionId && capturedCallbacks.has(self.sessionId)) {
-            capturedCallbacks.get(self.sessionId)!(self.sessionId);
+          if (sessionId && capturedCallbacks.has(sessionId)) {
+            capturedCallbacks.get(sessionId)!(sessionId);
           }
         });
 
@@ -84,6 +99,7 @@ describe("SessionManager", () => {
     vi.clearAllMocks();
     capturedCallbacks.clear();
     mockTransports.clear();
+    mcpServerConstructorArgs.length = 0;
   });
 
   it("test_session_cap_throws_session_cap_error", async () => {
@@ -206,5 +222,46 @@ describe("SessionManager", () => {
     const entryAfter = manager.getSession(sessionId)!;
 
     expect(entryAfter.lastActivity).toBeGreaterThanOrEqual(activityBefore);
+  });
+
+  it("test_two_sessions_have_distinct_ids_and_isolated_entries", async () => {
+    // Example 22: session isolation — two sessions must have distinct IDs and
+    // getSession(id1) must return a different entry than getSession(id2).
+    const manager = new SessionManager({
+      maxSessions: 10,
+      idleTimeoutMs: 60_000,
+      serverIdentity: { name: "test", version: "1.0" },
+      logger: makeLogger(),
+    });
+
+    const session1 = await manager.createSession();
+    const session2 = await manager.createSession();
+
+    expect(session1.sessionId).not.toBe(session2.sessionId);
+
+    const entry1 = manager.getSession(session1.sessionId);
+    const entry2 = manager.getSession(session2.sessionId);
+
+    expect(entry1).toBeDefined();
+    expect(entry2).toBeDefined();
+    expect(entry1).not.toBe(entry2);
+  });
+
+  it("test_mcp_server_constructed_with_package_identity", async () => {
+    // AC-19: each session's McpServer must be constructed with the upstream package.json
+    // name and version — not a hardcoded string.
+    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { name: string; version: string };
+
+    const manager = new SessionManager({
+      maxSessions: 10,
+      idleTimeoutMs: 60_000,
+      serverIdentity: { name: pkg.name, version: pkg.version },
+      logger: makeLogger(),
+    });
+
+    await manager.createSession();
+
+    expect(mcpServerConstructorArgs.length).toBe(1);
+    expect(mcpServerConstructorArgs[0]).toEqual({ name: pkg.name, version: pkg.version });
   });
 });

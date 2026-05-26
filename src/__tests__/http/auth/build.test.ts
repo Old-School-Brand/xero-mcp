@@ -91,7 +91,6 @@ const nonLocalSettings: NonLocalSettings = {
   MCP_MAX_SESSIONS: 100,
   ENTRA_TENANT_ID: "tenant-123",
   ENTRA_CLIENT_ID: "client-456",
-  ENTRA_CLIENT_SECRET: "secret-789",
   MCP_SERVER_URL: "https://example.com",
   ENTRA_REQUIRED_SCOPES: "mcp",
   REDIS_URL: "redis://localhost:6379",

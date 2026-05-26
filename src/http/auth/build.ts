@@ -8,24 +8,29 @@ import type { LocalSettings, NonLocalSettings, Settings } from "../settings.js";
 
 // Local-only overload
 export function buildAuth(settings: LocalSettings): { verifier: OAuthTokenVerifier; requiredScopes: string[] };
-// Non-local overload
+// Non-local overload — returns EntraVerifier directly (not just OAuthTokenVerifier) so callers
+// can access EntraVerifier-specific properties such as .jwksUrl without a type cast.
 export function buildAuth(
   settings: NonLocalSettings,
   redisClient: RedisClientType,
-): { provider: ProxyOAuthServerProvider; verifier: OAuthTokenVerifier; requiredScopes: string[] };
+): { provider: ProxyOAuthServerProvider; verifier: EntraVerifier; requiredScopes: string[] };
 // Implementation signature
 export function buildAuth(
   settings: Settings,
   redisClient?: RedisClientType,
 ):
   | { verifier: OAuthTokenVerifier; requiredScopes: string[] }
-  | { provider: ProxyOAuthServerProvider; verifier: OAuthTokenVerifier; requiredScopes: string[] } {
+  | { provider: ProxyOAuthServerProvider; verifier: EntraVerifier; requiredScopes: string[] } {
   if (settings.ENVIRONMENT === "local") {
     const verifier = new LocalBearerVerifier(settings.DEV_BEARER_TOKEN);
     return { verifier, requiredScopes: ["mcp"] };
   }
 
   // Non-local branch: Entra + Redis
+  // Fail loud if redisClient is missing — the overloads guarantee its presence at every
+  // non-local call site; this guard converts a type assertion into a runtime check.
+  if (!redisClient) throw new Error("redisClient is required in non-local mode");
+
   const { ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_REQUIRED_SCOPES } = settings;
   const requiredScopes = ENTRA_REQUIRED_SCOPES.split(",");
 
@@ -36,8 +41,8 @@ export function buildAuth(
   });
 
   const store = new RedisOAuthClientsStore({
-    get: redisClient!.get.bind(redisClient),
-    set: redisClient!.set.bind(redisClient),
+    get: redisClient.get.bind(redisClient),
+    set: redisClient.set.bind(redisClient),
   });
 
   const provider = new ProxyOAuthServerProvider({
