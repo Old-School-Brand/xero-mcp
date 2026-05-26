@@ -84,26 +84,31 @@ bearer → session initialised. All Phase 1 tests still green.
 
 ---
 
-- [ ] **Task 2.1** — `src/http/auth/local-verifier.ts` — Static bearer OAuthTokenVerifier
+- [x] **Task 2.1** — `src/http/auth/local-verifier.ts` — Static bearer OAuthTokenVerifier
   - File(s): `src/http/auth/local-verifier.ts`, `src/__tests__/http/auth/local-verifier.test.ts`
   - What to do: Export `class LocalBearerVerifier implements OAuthTokenVerifier`. Constructor takes `devBearerToken: string`. `async verifyAccessToken(token: string): Promise<AuthInfo>`: if `token === this.devBearerToken` return `{ token, clientId: "dev-local", scopes: ["mcp"], expiresAt: undefined }`; otherwise `throw new InvalidTokenError("Invalid dev bearer token")`. Import `InvalidTokenError` from `@modelcontextprotocol/sdk/server/auth/errors.js`. Import `OAuthTokenVerifier` from `@modelcontextprotocol/sdk/server/auth/provider.js` and `AuthInfo` from `@modelcontextprotocol/sdk/server/auth/types.js`.
   - Acceptance: `verifyAccessToken("correct")` resolves to `AuthInfo` with `scopes: ["mcp"]`. `verifyAccessToken("wrong")` rejects with `InvalidTokenError`. Pure logic — no mocks needed.
   - Depends on: none (pure module, no upstream deps beyond the SDK)
   - Examples: Example 2, Example 3
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/auth/local-verifier.test.ts
 
-- [ ] **Task 2.2** — `src/http/auth/build.ts` — Auth factory, local branch only
+- [x] **Task 2.2** — `src/http/auth/build.ts` — Auth factory, local branch only
   - File(s): `src/http/auth/build.ts`, `src/__tests__/http/auth/build.test.ts`
   - What to do: Export `buildAuth` with TypeScript function overloads. Local-branch overload: `function buildAuth(settings: LocalSettings): { verifier: OAuthTokenVerifier, requiredScopes: string[] }`. When `settings.ENVIRONMENT === "local"`, return `{ verifier: new LocalBearerVerifier(settings.DEV_BEARER_TOKEN), requiredScopes: ["mcp"] }`. No `provider` property in the local return type. The non-local branch overload is added in Task 3.3. The implementation signature is `function buildAuth(settings: Settings, redisClient?: RedisClientType) { ... }`. Plan the types so that adding the non-local branch in Task 3.3 is an additive change.
   - Acceptance: `buildAuth({ ENVIRONMENT: "local", DEV_BEARER_TOKEN: "tok", ... } as LocalSettings)` returns `{ requiredScopes: ["mcp"] }` and `verifier` is a `LocalBearerVerifier` instance. Use `vi.mock` for `LocalBearerVerifier`.
   - Depends on: Task 1.3, Task 2.1
   - Examples: (local auth wiring, tested end-to-end in Task 2.3)
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/auth/build.test.ts
 
-- [ ] **Task 2.3** — Wire `requireBearerAuth` onto `/mcp` in `src/http/server.ts`
+- [x] **Task 2.3** — Wire `requireBearerAuth` onto `/mcp` in `src/http/server.ts`
   - File(s): `src/http/server.ts`
   - What to do: After building the auth config via `buildAuth(settings)`, insert `requireBearerAuth({ verifier, requiredScopes, resourceMetadataUrl: settings.ENVIRONMENT !== "local" ? getOAuthProtectedResourceMetadataUrl(new URL(settings.MCP_SERVER_URL!)) : undefined })` as middleware on the `/mcp` route, before the session handler. Import `requireBearerAuth` from `@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js` and `getOAuthProtectedResourceMetadataUrl` from `@modelcontextprotocol/sdk/server/auth/router.js`. No `mcpAuthRouter` yet — that is Task 3.4. No change to `/livez` or `/readyz` routes.
   - Acceptance: With server running in local mode, `POST /mcp` without `Authorization` header returns 401 with `WWW-Authenticate: Bearer` header. `POST /mcp` with `Authorization: Bearer <DEV_BEARER_TOKEN>` and `initialize` body returns 200 with `Mcp-Session-Id` response header.
   - Depends on: Task 1.7, Task 2.2
   - Examples: Example 1, Example 2, Example 3
+  - Completed: 2026-05-26
 
 ---
 
@@ -115,26 +120,32 @@ green.
 
 ---
 
-- [ ] **Task 3.1** — `src/http/auth/redis-clients-store.ts` — Redis-backed OAuthRegisteredClientsStore
+- [x] **Task 3.1** — `src/http/auth/redis-clients-store.ts` — Redis-backed OAuthRegisteredClientsStore
   - File(s): `src/http/auth/redis-clients-store.ts`, `src/__tests__/http/auth/redis-clients-store.test.ts`
   - What to do: Export `class RedisOAuthClientsStore implements OAuthRegisteredClientsStore`. Constructor takes `redis: { get: (key: string) => Promise<string | null>, set: (key: string, value: string) => Promise<unknown> }` (narrowed to the two operations actually used — avoids importing the full Redis type in the interface). Key pattern: `` `oauth:clients:${clientId}` ``. `async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined>`: `const raw = await this.redis.get(key)` — if `null` return `undefined`; else `return JSON.parse(raw) as OAuthClientInformationFull`. `async registerClient(client: Omit<OAuthClientInformationFull, "client_id" | "client_id_issued_at">): Promise<OAuthClientInformationFull>`: generate `client_id = randomUUID()`, set `client_id_issued_at = Math.floor(Date.now() / 1000)`, compose full object, `await this.redis.set(key, JSON.stringify(full))`, return `full`. No TTL. No encryption. The store is the single source of truth for `client_id` generation — the SDK's `clientRegistrationHandler` will be configured with `clientIdGeneration: false` so it does NOT generate a `client_id` before calling `registerClient`.
   - Acceptance: Use an in-memory fake `{ get: vi.fn(), set: vi.fn() }`. `getClient("nonexistent")` returns `undefined` when `get` returns `null`. `registerClient(...)` returns an object with a UUID `client_id` and calls `set` with the key `oauth:clients:<uuid>` and a JSON string. Subsequent `getClient(client_id)` (with `get` stubbed to return the JSON) returns the registered object.
   - Depends on: none (pure module)
   - Examples: Example 23, Example 24
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/auth/redis-clients-store.test.ts
 
-- [ ] **Task 3.2** — `src/http/auth/entra-verifier.ts` — Entra JWT verifier via jose
+- [x] **Task 3.2** — `src/http/auth/entra-verifier.ts` — Entra JWT verifier via jose
   - File(s): `src/http/auth/entra-verifier.ts`, `src/__tests__/http/auth/entra-verifier.test.ts`
   - What to do: Export `class EntraVerifier implements OAuthTokenVerifier`. Constructor takes `{ tenantId: string, clientId: string, requiredScopes: string[] }`. Construct the `RemoteJWKSet` in the constructor as a private field via `createRemoteJWKSet(new URL(\`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys\`))`. This ensures the same JWKS fetch path is used at both startup (probe) and runtime (token verification) — no separate fetch URL constant, no duplicate cache. `async verifyAccessToken(token: string): Promise<AuthInfo>`: wrap the body in `try { ... } catch (err) { if (err instanceof jose.errors.JOSEError) throw new InvalidTokenError(err.message); throw err; }`. Inside the try block: call `jose.jwtVerify(token, this.jwks, { issuer: \`https://login.microsoftonline.com/${tenantId}/v2.0\`, audience: \`api://${clientId}\` })`; extract `scp` claim (space-delimited string) from payload; assert every scope in `requiredScopes` is present — if not, `throw new InsufficientScopeError(\`Missing required scopes: ...\`)`; return `{ token, clientId: payload.sub ?? payload.oid ?? "unknown", scopes: scpArray, expiresAt: payload.exp as number | undefined }`. **The catch MUST NOT swallow non-jose errors.** Network failures from `RemoteJWKSet`'s underlying fetch (`TypeError("fetch failed")`, DNS errors, HTTP errors from the JWKS endpoint) are NOT `JOSEError` instances — they must propagate so the startup probe in Task 3.4 can discriminate "JWKS unreachable" from "token rejected". **Also export** `export const STARTUP_PROBE_JWT = "eyJhbGciOiJSUzI1NiIsImtpZCI6InN0YXJ0dXAtcHJvYmUifQ.eyJpc3MiOiJzdGFydHVwLXByb2JlIn0.invalid"` — a structurally-valid JWT (header `{alg:"RS256",kid:"startup-probe"}`, payload `{iss:"startup-probe"}`, junk signature) used by `server.ts` for the JWKS startup probe. The sentinel MUST be structurally valid; an arbitrary string would fail `jose.jwtVerify`'s structural parse before any JWKS fetch is attempted, defeating the probe.
   - Acceptance: `vi.mock("jose")`. `verifyAccessToken("valid-jwt")` resolves to `AuthInfo` when `jwtVerify` resolves with valid payload including `scp: "mcp email"`. `verifyAccessToken("expired-jwt")` rejects with `InvalidTokenError` when `jwtVerify` throws a `JWTExpired`-shaped error (must extend `jose.errors.JOSEError`). `verifyAccessToken("no-scope-jwt")` rejects with `InsufficientScopeError` when `scp` is missing the required scope. **Network-error propagation test:** when `jwtVerify` throws a plain `new TypeError("fetch failed")`, `verifyAccessToken` must reject with that exact `TypeError` (NOT `InvalidTokenError`). `STARTUP_PROBE_JWT` is exported as a non-empty string with three dot-separated segments.
   - Depends on: Task 1.3
   - Examples: Example 13, Example 14, Example 16
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/auth/entra-verifier.test.ts
 
-- [ ] **Task 3.3** — Extend `src/http/auth/build.ts` with non-local Entra branch
+- [x] **Task 3.3** — Extend `src/http/auth/build.ts` with non-local Entra branch
   - File(s): `src/http/auth/build.ts`, `src/__tests__/http/auth/build.test.ts` (extend existing test file)
   - What to do: Add the non-local overload: `function buildAuth(settings: NonLocalSettings, redisClient: RedisClientType): { provider: ProxyOAuthServerProvider, verifier: OAuthTokenVerifier, requiredScopes: string[] }`. The overload ensures TypeScript requires `redisClient` when settings are non-local — no `redisClient!` non-null assertion needed. Implementation for the non-local branch: instantiate `EntraVerifier`, instantiate `store = new RedisOAuthClientsStore({ get: redisClient.get.bind(redisClient), set: redisClient.set.bind(redisClient) })`, instantiate `provider = new ProxyOAuthServerProvider({ endpoints: { authorizationUrl: \`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize\`, tokenUrl: \`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token\` }, verifyAccessToken: (token) => verifier.verifyAccessToken(token), getClient: (id) => store.getClient(id) })`, then override the provider's `clientsStore` getter: `Object.defineProperty(provider, 'clientsStore', { value: store })`. This override is necessary because the SDK's `ProxyOAuthServerProvider` only includes `registerClient` in its `clientsStore` getter when `endpoints.registrationUrl` is provided (we don't pass one since DCR is local). The `mcpAuthRouter` reads `provider.clientsStore.registerClient` to decide whether to mount `/register`. Without the override, DCR is silently disabled. Return `{ provider, verifier, requiredScopes: settings.ENTRA_REQUIRED_SCOPES.split(",") }`. No `clientsStore` in the return type — the provider now exposes the full store via its overridden `clientsStore` getter.
   - Acceptance: `vi.mock` for `EntraVerifier`, `RedisOAuthClientsStore`, `ProxyOAuthServerProvider`. Given `ENVIRONMENT=development` settings and a mock Redis client, `buildAuth(settings, redisClient)` returns `{ provider: ProxyOAuthServerProvider instance, verifier: EntraVerifier instance, requiredScopes: ["mcp"] }`. Verify that `Object.defineProperty` was called on the provider with key `'clientsStore'` and that `provider.clientsStore` returns the `RedisOAuthClientsStore` instance (i.e., has a `registerClient` method).
   - Depends on: Task 3.1, Task 3.2
   - Examples: Example 14, Example 15, Example 16
+  - Completed: 2026-05-26
+  - Tests: src/__tests__/http/auth/build.test.ts
 
 - [ ] **Task 3.4** — Wire Redis startup probe, Entra JWKS probe, and `mcpAuthRouter` into `src/http/server.ts`
   - File(s): `src/http/server.ts`
