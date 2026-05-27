@@ -8,6 +8,9 @@ import {
   Organisation,
   XeroClient,
 } from "xero-node";
+// Type-only import — zero runtime cost. The redis module is only loaded
+// dynamically inside ensureRedisClient() when XERO_TOKEN_STORE=redis.
+import type { RedisClientType } from "redis";
 
 import { ensureError } from "../helpers/ensure-error.js";
 
@@ -80,6 +83,14 @@ class RefreshTokenXeroClient extends MCPXeroClient {
   private currentRefreshToken: string = "";
   private initialised = false;
   private authPromise: Promise<void> | null = null;
+  private readonly tokenStore: "file" | "redis";
+  private readonly tokenRedisKey: string;
+  // Lazily created on first use when XERO_TOKEN_STORE=redis. Null otherwise.
+  // A post-startup Redis drop propagates as an error into the caller, which
+  // already handles it via process.exit(1) in scheduleRefresh — consistent
+  // with the existing fail-loud model. No isReady-based reconnect branch to
+  // avoid leaking client handles on transient drops.
+  private tokenRedisClient: RedisClientType | null = null;
 
   constructor(config: { clientId: string; clientSecret: string }) {
     super({ clientId: config.clientId, clientSecret: config.clientSecret });
@@ -88,22 +99,52 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     this.tokenFilePath =
       process.env.XERO_TOKEN_FILE ||
       path.join(os.homedir(), ".xero-mcp", "refresh_token");
+    this.tokenStore =
+      process.env.XERO_TOKEN_STORE === "redis" ? "redis" : "file";
+    this.tokenRedisKey =
+      process.env.XERO_TOKEN_REDIS_KEY ?? "xero:refresh_token";
   }
 
-  private resolveRefreshToken(): string {
-    try {
-      const token = fs.readFileSync(this.tokenFilePath, "utf-8").trim();
-      if (token) return token;
-    } catch {
-      // File does not exist or is unreadable — fall through to env var.
+  private async ensureRedisClient(): Promise<RedisClientType> {
+    // Return existing client if already created — created once, reused for
+    // the process lifetime.
+    if (this.tokenRedisClient !== null) return this.tokenRedisClient;
+    if (!process.env.REDIS_URL) {
+      throw new Error("REDIS_URL is required when XERO_TOKEN_STORE=redis");
     }
+    const { createClient } = await import("redis");
+    const client = createClient({ url: process.env.REDIS_URL });
+    await client.connect();
+    this.tokenRedisClient = client as RedisClientType;
+    return this.tokenRedisClient;
+  }
 
+  // Returns the env-seed token or throws with guidance if absent.
+  // Used by both file and redis resolve paths when no persisted token exists.
+  private envSeedOrThrow(): string {
     const envToken = process.env.XERO_REFRESH_TOKEN;
     if (envToken) return envToken;
-
     throw new Error(
       "No refresh token found. Set XERO_REFRESH_TOKEN to a valid Xero refresh token, or obtain one at https://api-explorer.xero.com",
     );
+  }
+
+  private async resolveRefreshToken(): Promise<string> {
+    if (this.tokenStore === "file") {
+      try {
+        const token = fs.readFileSync(this.tokenFilePath, "utf-8").trim();
+        if (token) return token;
+      } catch {
+        // File does not exist or is unreadable — fall through to env var.
+      }
+      return this.envSeedOrThrow();
+    }
+
+    // redis mode
+    const client = await this.ensureRedisClient();
+    const token = await client.get(this.tokenRedisKey);
+    if (token) return token;
+    return this.envSeedOrThrow();
   }
 
   private async exchangeToken(refreshToken: string): Promise<{
@@ -164,16 +205,29 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     }
   }
 
-  private persistRefreshToken(token: string): void {
-    const dir = path.dirname(this.tokenFilePath);
-    if (!fs.existsSync(dir)) {
-      throw new Error(
-        `Token file directory does not exist: ${dir}. Create it with: mkdir -p ${dir}`,
-      );
+  private async persistRefreshToken(token: string): Promise<void> {
+    if (this.tokenStore === "file") {
+      const dir = path.dirname(this.tokenFilePath);
+      if (!fs.existsSync(dir)) {
+        throw new Error(
+          `Token file directory does not exist: ${dir}. Create it with: mkdir -p ${dir}`,
+        );
+      }
+      const tmpPath = `${this.tokenFilePath}.tmp`;
+      fs.writeFileSync(tmpPath, token, { mode: 0o600 });
+      fs.renameSync(tmpPath, this.tokenFilePath);
+      return;
     }
-    const tmpPath = `${this.tokenFilePath}.tmp`;
-    fs.writeFileSync(tmpPath, token, { mode: 0o600 });
-    fs.renameSync(tmpPath, this.tokenFilePath);
+
+    // redis mode
+    // NOTE: if Redis is unreachable during a scheduled refresh after Xero has
+    // already rotated the token, the new token isn't persisted and the process
+    // exits via the scheduleRefresh catch block. On restart the process reads
+    // the now-stale token from Redis and requires manual re-seeding via
+    // XERO_REFRESH_TOKEN. This matches the existing file-write failure
+    // behaviour — acceptable, documented, no retry added (YAGNI).
+    const client = await this.ensureRedisClient();
+    await client.set(this.tokenRedisKey, token);
   }
 
   private scheduleRefresh(expiresIn: number): void {
@@ -181,7 +235,7 @@ class RefreshTokenXeroClient extends MCPXeroClient {
     setTimeout(async () => {
       try {
         const tokenData = await this.exchangeToken(this.currentRefreshToken);
-        this.persistRefreshToken(tokenData.refresh_token);
+        await this.persistRefreshToken(tokenData.refresh_token);
         this.currentRefreshToken = tokenData.refresh_token;
         this.setTokenSet({
           access_token: tokenData.access_token,
@@ -206,9 +260,9 @@ class RefreshTokenXeroClient extends MCPXeroClient {
   }
 
   private async _doAuthenticate(): Promise<void> {
-    const refreshToken = this.resolveRefreshToken();
+    const refreshToken = await this.resolveRefreshToken();
     const tokenData = await this.exchangeToken(refreshToken);
-    this.persistRefreshToken(tokenData.refresh_token);
+    await this.persistRefreshToken(tokenData.refresh_token);
     this.currentRefreshToken = tokenData.refresh_token;
     this.setTokenSet({
       access_token: tokenData.access_token,

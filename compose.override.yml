@@ -1,0 +1,13 @@
+services:
+  backend:
+    restart: "no"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.xero-mcp:/app/.xero-mcp
+    develop:
+      watch:
+        - path: ./src
+          action: rebuild
+        - path: ./package.json
+          action: rebuild

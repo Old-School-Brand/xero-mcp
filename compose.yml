@@ -1,0 +1,45 @@
+services:
+  # Valkey is intentionally unauthenticated and internal-only: port 6379 is NOT
+  # published to the host, and the service is only reachable from within the
+  # Compose network. It serves the DCR (Dynamic Client Registration) OAuth state
+  # store used by the HTTP entry point in non-local mode, and is also available
+  # for XERO_TOKEN_STORE=redis override locally. Under the default
+  # ENVIRONMENT=local + file token mode (XERO_TOKEN_STORE defaults to "file"),
+  # the backend connects to Valkey for DCR but does not write the Xero token
+  # there. If deploying in a shared environment, consider adding --requirepass.
+  valkey:
+    image: valkey/valkey:9.0.4
+    restart: always
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xero-mcp:latest
+    restart: always
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=local
+      - REDIS_URL=redis://valkey:6379/0
+    env_file:
+      - path: .env
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const http = require('http'); const req = http.get('http://localhost:8000/livez', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); req.on('error', () => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
