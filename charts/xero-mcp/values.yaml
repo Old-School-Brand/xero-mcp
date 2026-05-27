@@ -1,0 +1,63 @@
+# replicaCount: 1 is required for correct token-rotation behaviour.
+# Xero invalidates the old refresh token on every exchange. With a single
+# replica, only one pod holds currentRefreshToken at a time. Raising
+# replicaCount or maxSurge above 1 widens the crash-restart window during
+# RollingUpdate deploys (both pods may attempt an exchange; the slower one
+# reads a stale token, crashes, and Kubernetes restarts it — self-healing
+# but noisier). Keep at 1 unless you accept that trade-off.
+replicaCount: 1
+
+image:
+  repository: oldschoolbrand.azurecr.io/xero-mcp/backend
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# imagePullSecrets is required when pulling from a private registry (e.g. ACR).
+# Example: imagePullSecrets: [{name: acr-pull-secret}]
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+envFrom:
+  secretRef:
+    name: ""
+
+auth:
+  publicUrl: ""
+  requiredScopes: ""
+
+env: {}
+
+ingress:
+  enabled: false
+  host: ""
+  tls:
+    secretName: ""
+
+probes:
+  liveness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+    successThreshold: 1
+  readiness:
+    initialDelaySeconds: 3
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+    successThreshold: 1
+
+extraVolumes: []
+extraVolumeMounts: []
+nodeSelector: {}

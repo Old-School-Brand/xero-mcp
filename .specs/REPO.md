@@ -16,9 +16,13 @@ See `.specs/PRD.md` for the fork's charter.
 |--------------|----------------------------------------------------------------------------|
 | Runtime      | Node.js v18+                                                               |
 | Language     | TypeScript 5.9 (`strict: true`, target ES2022, module Node16, ESM)         |
-| MCP          | `@modelcontextprotocol/sdk` ^1.23.4 (stdio transport)                      |
+| MCP          | `@modelcontextprotocol/sdk` ^1.23.4 (stdio transport + Streamable HTTP transport) |
 | Xero SDK     | `xero-node` ^13.3.0                                                        |
-| Auth         | Refresh Token mode via axios (refresh token exchange, token file persistence, proactive renewal) |
+| Auth (Xero)  | Refresh Token mode via axios (refresh token exchange; token store persistence — `file` default or `redis` via `XERO_TOKEN_STORE`; proactive renewal) |
+| Auth (MCP HTTP) | Entra ID OAuth via `jose` (JWT verification) + SDK's `ProxyOAuthServerProvider` / `mcpAuthRouter` / `requireBearerAuth`. Local-dev: static bearer. See ADR-0002. |
+| HTTP         | `express` — app shell for the HTTP entry point (`src/http/server.ts`)      |
+| Cache/Store  | `redis` v4 (node-redis) — DCR client storage + health probes. See ADR-0003. |
+| Logging      | `pino` + `pino-http` — structured JSON logging for the HTTP entry          |
 | Validation   | `zod` 3.25                                                                 |
 | Env          | `dotenv` ^16.4.7                                                           |
 | Linting      | ESLint 9 (`@eslint/js` + `typescript-eslint`)                              |
@@ -35,11 +39,11 @@ See `.specs/PRD.md` for the fork's charter.
 ```
 xero-mcp/
 ├── src/
-│   ├── index.ts                  # Entry point — wires StdioServerTransport, calls ToolFactory
+│   ├── index.ts                  # Stdio entry point — wires StdioServerTransport, calls ToolFactory
 │   ├── server/
-│   │   └── xero-mcp-server.ts    # Singleton McpServer wrapper
+│   │   └── xero-mcp-server.ts    # Singleton McpServer wrapper (used by stdio entry only)
 │   ├── clients/
-│   │   └── xero-client.ts        # RefreshTokenXeroClient — refresh token exchange, token file persistence, proactive renewal
+│   │   └── xero-client.ts        # RefreshTokenXeroClient — refresh token exchange, token store persistence (file or redis via XERO_TOKEN_STORE), proactive renewal
 │   ├── handlers/                 # One handler file per Xero API operation (~53 files)
 │   │   ├── create-xero-*.handler.ts
 │   │   ├── list-xero-*.handler.ts
@@ -54,17 +58,37 @@ xero-mcp/
 │   │   └── get/                  # 1 get-* tool
 │   ├── helpers/                  # Shared utilities (error formatting, line-item parsing, tracking options, deeplinks, etc.)
 │   ├── types/                    # ToolDefinition, ToolResponse, ToolList, Timeframe, etc.
-│   └── consts/                   # Constants used across handlers
+│   ├── consts/                   # Constants used across handlers
+│   ├── http/                     # OSB HTTP entry point and auth (org-specific; never modify upstream files)
+│   │   ├── server.ts             # HTTP entry point — Express bootstrap + session router
+│   │   ├── settings.ts           # Zod schema for HTTP-mode env vars
+│   │   ├── sessions.ts           # Per-session transport + McpServer lifecycle
+│   │   ├── health.ts             # /livez and /readyz endpoints
+│   │   ├── logging.ts            # Pino logger + pino-http middleware factory
+│   │   └── auth/                 # Auth provider factory + verifiers + DCR store
+│   │       ├── build.ts          # Provider factory: local vs Entra branch
+│   │       ├── local-verifier.ts # Static bearer verifier (ENVIRONMENT=local)
+│   │       ├── entra-verifier.ts # Entra JWT verifier via jose
+│   │       └── redis-clients-store.ts  # OAuthRegisteredClientsStore on Redis
+│   └── __tests__/                # Test suites
+│       ├── clients/
+│       │   └── xero-client.test.ts
+│       └── http/                 # Tests for the HTTP entry (mirrors src/http/ structure)
 │
 ├── dist/                         # Compiled output (committed because the package's bin points at it)
 ├── examples/                     # Example client configs and usage snippets
 │
-├── package.json                  # Deps + npm scripts; "type": "module"; "bin": "./dist/index.js"
+├── package.json                  # Deps + npm scripts; "type": "module"; bin: stdio + HTTP entries
 ├── package-lock.json
 ├── tsconfig.json                 # strict ES2022 / Node16 ESM
 ├── eslint.config.js              # Flat config: @eslint/js + typescript-eslint + prettier
 ├── .prettierrc
-├── .env.example                  # XERO_CLIENT_ID / XERO_CLIENT_SECRET / XERO_REFRESH_TOKEN template
+├── .env.example                  # Xero creds + OSB HTTP-mode vars
+├── Dockerfile                    # Multi-stage container image (builder: node:22-bookworm-slim; runtime: node:22-bookworm-slim, UID 10001)
+├── .dockerignore                 # Build context exclusions (node_modules, dist, .specs, .env*, etc.)
+├── compose.yml                   # Docker Compose stack: backend + Valkey (production-like defaults)
+├── compose.override.yml          # Local-dev overrides: port 8000, bind-mount for token file, watch rebuild
+├── charts/xero-mcp/              # Helm chart for Kubernetes deployment (Deployment, Service, Ingress)
 ├── start-server.sh               # Local-dev convenience: `npx tsc && node dist/index.js`
 ├── glama.json                    # Glama MCP registry metadata
 ├── README.md                     # User-facing: setup, auth modes, available tools
@@ -86,7 +110,7 @@ xero-mcp/
 |----------|----------------------------------------------------------------------------------------------------|
 | backend  | TypeScript MCP server source (`src/`) — handlers, tools, `ToolFactory` registration, `XeroClient` wrapping, helpers, types |
 | ci-cd    | GitHub Actions, release/publish workflows, image scans, version bumps (no files yet — folder is reserved) |
-| infra    | Dockerfile, deployment artefacts, runtime config (env handling, scope minimisation, secret sourcing) (no files yet — folder is reserved) |
+| infra    | Dockerfile, Docker Compose stack (`compose.yml` + `compose.override.yml`), Helm chart (`charts/xero-mcp/`), and the conditional Redis token store (`XERO_TOKEN_STORE`) in `xero-client.ts` |
 
 > Most of the existing codebase lives in the `backend` layer. `ci-cd` and `infra` are reserved homes for the org-specific improvements named in `.specs/PRD.md`.
 
@@ -111,8 +135,14 @@ xero-mcp/
 | `XERO_CLIENT_SECRET`  | Xero app client secret                                                               |
 | `XERO_REFRESH_TOKEN`  | Refresh token seed (used on first run if token file is absent; rotated thereafter)  |
 | `XERO_TOKEN_FILE`     | Optional. Path to the persisted refresh token file. Defaults to `~/.xero-mcp/refresh_token` |
+| `XERO_TOKEN_STORE`    | Optional. Token store backend: `file` (default, local/stdio) or `redis` (deployed/HTTP). |
+| `XERO_TOKEN_REDIS_KEY` | Optional. Redis key name for the refresh token when `XERO_TOKEN_STORE=redis`. Default: `xero:refresh_token`. |
 
-**Refresh Token mode:** At startup the server exchanges the refresh token for an access token, persists the rotated refresh token to the token file with `0600` permissions, then schedules proactive renewal at `expires_in - 300` seconds. All ~52 handlers call `await xeroClient.authenticate()` which is a no-op after the initial startup exchange.
+**Refresh Token mode:** At startup the server exchanges the refresh token for an access token, persists the rotated refresh token via the configured **token store** (default `file`, `0600` permissions; `redis` when `XERO_TOKEN_STORE=redis`, used by the deployed HTTP mode), then schedules proactive renewal at `expires_in - 300` seconds. The stdio entry defaults to `file` mode and needs no Redis. All ~52 handlers call `await xeroClient.authenticate()` which is a no-op after the initial startup exchange.
+
+### HTTP-mode env vars (additional)
+
+When running the HTTP entry (`dist/http/server.js`), additional variables are required. See `.env.example` for the full list with comments. Key additions: `ENVIRONMENT`, `DEV_BEARER_TOKEN`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MCP_SERVER_URL`, `ENTRA_REQUIRED_SCOPES`, `REDIS_URL`.
 
 ---
 
@@ -145,12 +175,13 @@ xero-mcp/
 | Run all tests       | `npm run test` (= `vitest run`)                                      | repo root    |
 | Run with coverage   | `npm run test:coverage` (= `vitest run --coverage`)                  | repo root    |
 | Run a single file   | `npx vitest run src/__tests__/clients/xero-client.test.ts`           | repo root    |
+| Run HTTP tests      | `npx vitest run src/__tests__/http/`                                 | repo root    |
 
 There is no `npm run start` — see [Driving the running MCP server](#driving-the-running-mcp-server) for how to launch.
 
 ### Driving the running MCP server
 
-Because MCP servers communicate over stdio, "running" the server means handing its stdin/stdout to an MCP client. There is no port, no browser, no HTTP — verification is done through an MCP client that speaks the protocol.
+**Stdio mode** — the upstream default. MCP over stdio; one process per user.
 
 **1. Local launch (manual)**
 
@@ -193,6 +224,34 @@ npx @modelcontextprotocol/inspector node dist/index.js
 
 Opens a local web UI for listing tools, invoking them with parameter forms, and seeing raw request/response JSON. Faster than Claude Desktop for quick "does this tool work" checks.
 
+**HTTP mode** — the org-specific entry point. MCP over Streamable HTTP with bearer auth.
+
+**4. HTTP local-dev launch**
+
+```bash
+npm run build
+ENVIRONMENT=local DEV_BEARER_TOKEN=test XERO_CLIENT_ID=... XERO_CLIENT_SECRET=... XERO_REFRESH_TOKEN=... node dist/http/server.js
+```
+
+Or via the script: `npm run start:http` (requires env vars in `.env`).
+
+Verify: `curl -fsS http://localhost:8000/livez` should return `{"status":"ok"}`.
+
+**5. Local Docker stack**
+
+```bash
+# One-shot boot (requires .env with Xero credentials)
+docker compose up --build
+
+# Smoke check
+curl -fsS http://localhost:8000/livez
+
+# Tear down
+docker compose down
+```
+
+The stack runs `backend` (the HTTP entry point) + `valkey` (Redis-compatible, used for DCR OAuth state). The compose override publishes port 8000 and bind-mounts `.xero-mcp/` so the file-mode token survives restarts. `ENVIRONMENT=local` and `REDIS_URL` are pre-set; add Xero credentials to `.env` (copy from `.env.example`).
+
 **Verifying a change.** Type checking + linting only confirm code correctness. To verify a tool actually does what it should:
 
 - Build (`npm run build`)
@@ -215,6 +274,8 @@ The upstream repository is [`XeroAPI/xero-mcp-server`](https://github.com/XeroAP
 5. Bump our internal version if we ship a release-worthy change.
 
 Per `.specs/PRD.md`: changes that *should* live upstream (new Xero API integrations, fixes to existing tools, etc.) belong as PRs to `XeroAPI/xero-mcp-server`, not in this fork. The fork is for things that are genuinely org-specific.
+
+> **Upstream-isolation convention.** OSB-specific additions live under `src/http/` (and any future `src/{feature}/` subdirectories). Never modify upstream-owned files in `src/` (e.g. `index.ts`, `clients/`, `handlers/`, `tools/`, `server/`, `helpers/`, `types/`, `consts/`). Verify with: `git diff upstream/main -- src/ ':!src/http'` — should show zero changes. `package.json` and `.env.example` receive additive-only edits. See ADR-0002 for rationale.
 
 ---
 

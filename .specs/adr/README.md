@@ -32,3 +32,5 @@ Supersession is first-class: an ADR can only be superseded by another ADR, never
 | ADR | Title | Status |
 |-----|-------|--------|
 | [0001](0001-refresh-token-auth-mode.md) | Refresh Token mode replaces Custom Connection and Bearer Token auth | Accepted |
+| [0002](0002-mcp-http-transport-and-oauth.md) | MCP HTTP transport and OAuth model | Accepted |
+| [0003](0003-oauth-state-in-redis.md) | OAuth state persistence in Redis | Accepted |

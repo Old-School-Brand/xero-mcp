@@ -37,6 +37,36 @@
  *   - test_authenticate_noTokenSource_throws: authenticate() propagates resolveRefreshToken error
  */
 
+/*
+ * Tasks: A4, A5 — Redis-mode tests for resolveRefreshToken(), persistRefreshToken(),
+ *                  scheduleRefresh() in redis mode
+ * Source: .specs/002-http-transport-and-oauth/infra/todo.md
+ *
+ * Examples covered:
+ *   - Example 1: File mode is the default and unchanged (AC-1)
+ *   - Example 3: Redis mode resolves from the Redis key (AC-2)
+ *   - Example 4: Redis mode seeds from env when key absent (AC-3)
+ *   - Example 5: Redis mode persists rotations to Redis, not file (AC-4)
+ *   - Example 6: Redis mode fail-loud without REDIS_URL (AC-5)
+ *   - Example 7: Redis mode fail-loud when Redis unreachable (AC-5 unreachable variant)
+ *   - Example 8: Redis mode with custom key name (AC-2 custom key variant)
+ *   - Example 9: Redis mode: key absent and env seed absent throws with guidance (AC-3 no-seed failure)
+ *   - Example 10: File mode tests still pass (AC-1 regression guard)
+ *   - Example 11: Scheduled refresh in Redis mode calls process.exit(1) on failure (AC-4 failure path)
+ *
+ * Test plan (new redis-mode tests):
+ *   - test_redis_resolvesFromKey: get returns stored token → resolveRefreshToken returns it; readFileSync not called
+ *   - test_redis_seedsFromEnvWhenKeyAbsent: get returns null, env set → returns env seed
+ *   - test_redis_throwsWhenKeyAndEnvAbsent: get returns null, env unset → throws with guidance
+ *   - test_redis_usesCustomKeyName: XERO_TOKEN_REDIS_KEY=custom:token:key → get called with that key
+ *   - test_redis_failLoudWhenRedisUrlMissing: REDIS_URL="" → rejects with REDIS_URL message
+ *   - test_redis_failLoudWhenRedisUnreachable: connect rejects → resolveRefreshToken rejects
+ *   - test_fileModeDefault_doesNotCallRedis: XERO_TOKEN_STORE unset → createClient not called
+ *   - test_redis_persistWritesToRedisKey: persistRefreshToken calls redis.set; writeFileSync not called
+ *   - test_redis_scheduledRefreshPersistsToRedis: timer fires in redis mode → redis.set called; writeFileSync not called
+ *   - test_redis_scheduledRefreshFailureExitsProcess: timer fires, exchange rejects → process.exit(1) called
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { AxiosResponse } from "axios";
 
@@ -50,23 +80,37 @@ vi.mock("node:fs", () => ({
 
 vi.mock("axios");
 
+// ─── Redis mock — hoisted alongside the other vi.mock calls ──────────────────
+// vi.hoisted ensures the mock object is created before any import statements,
+// making it available both in the vi.mock factory and in test bodies.
+const mockRedisClient = vi.hoisted(() => ({
+  connect: vi.fn().mockResolvedValue(undefined),
+  get: vi.fn(),
+  set: vi.fn().mockResolvedValue("OK"),
+}));
+
+vi.mock("redis", () => ({
+  createClient: vi.fn(() => mockRedisClient),
+}));
+
 // ─── Shared imports ──────────────────────────────────────────────────────────
 import * as fs from "node:fs";
 import axios from "axios";
 import { AxiosError } from "axios";
+import * as redis from "redis";
 
 // ─── TestableClient: exposes all private methods exercised in tests ──────────
 // Defined once here; each describe block casts via `client as unknown as TestableClient`
 // to avoid repeating inline hand-written interface shapes throughout.
 type TestableClient = {
-  resolveRefreshToken(): string;
+  resolveRefreshToken(): Promise<string>;
+  persistRefreshToken(token: string): Promise<void>;
   exchangeToken(token: string): Promise<{
     access_token: string;
     refresh_token: string;
     expires_in: number;
     token_type: string;
   }>;
-  persistRefreshToken(token: string): void;
   updateTenants(): Promise<unknown[]>;
   setTokenSet(t: unknown): void;
   tokenFilePath: string;
@@ -129,7 +173,7 @@ describe("startup env var validation", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// Section 2: resolveRefreshToken()
+// Section 2: resolveRefreshToken() — file mode
 // ────────────────────────────────────────────────────────────────────────────
 describe("resolveRefreshToken()", () => {
   beforeEach(() => {
@@ -146,7 +190,7 @@ describe("resolveRefreshToken()", () => {
     vi.stubEnv("XERO_TOKEN_FILE", "");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_with_spaces  \n");
     const client = await getFreshClient();
-    const result = (client as unknown as TestableClient).resolveRefreshToken();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_with_spaces");
   });
 
@@ -154,7 +198,7 @@ describe("resolveRefreshToken()", () => {
     vi.stubEnv("XERO_TOKEN_FILE", "/tmp/custom-xero-token");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_custom_path");
     const client = await getFreshClient();
-    const result = (client as unknown as TestableClient).resolveRefreshToken();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_custom_path");
   });
 
@@ -165,7 +209,7 @@ describe("resolveRefreshToken()", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
     const client = await getFreshClient();
-    const result = (client as unknown as TestableClient).resolveRefreshToken();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_env_seed_001");
   });
 
@@ -174,7 +218,7 @@ describe("resolveRefreshToken()", () => {
     vi.stubEnv("XERO_REFRESH_TOKEN", "rt_env_older");
     vi.mocked(fs.readFileSync).mockReturnValue("rt_file_newer");
     const client = await getFreshClient();
-    const result = (client as unknown as TestableClient).resolveRefreshToken();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
     expect(result).toBe("rt_file_newer");
   });
 
@@ -185,9 +229,9 @@ describe("resolveRefreshToken()", () => {
       throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
     });
     const client = await getFreshClient();
-    expect(() =>
+    await expect(
       (client as unknown as TestableClient).resolveRefreshToken()
-    ).toThrow(/XERO_REFRESH_TOKEN.*https:\/\/api-explorer\.xero\.com|https:\/\/api-explorer\.xero\.com.*XERO_REFRESH_TOKEN/);
+    ).rejects.toThrow(/XERO_REFRESH_TOKEN.*https:\/\/api-explorer\.xero\.com|https:\/\/api-explorer\.xero\.com.*XERO_REFRESH_TOKEN/);
   });
 });
 
@@ -230,7 +274,7 @@ describe("exchangeToken()", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// Section 4: persistRefreshToken()
+// Section 4: persistRefreshToken() — file mode
 // ────────────────────────────────────────────────────────────────────────────
 describe("persistRefreshToken()", () => {
   beforeEach(() => {
@@ -242,16 +286,16 @@ describe("persistRefreshToken()", () => {
     vi.stubEnv("XERO_TOKEN_FILE", "/nonexistent/dir/refresh_token");
     vi.mocked(fs.existsSync).mockReturnValue(false);
     const client = await getFreshClient();
-    expect(() =>
+    await expect(
       (client as unknown as TestableClient).persistRefreshToken("rt_rotated_002")
-    ).toThrow(/\/nonexistent\/dir/);
+    ).rejects.toThrow(/\/nonexistent\/dir/);
   });
 
   it("test_dirExists_writesTokenFile: calls writeFileSync with .tmp path and 0600 permissions when dir exists", async () => {
     vi.stubEnv("XERO_TOKEN_FILE", "/tmp/test-refresh-token");
     vi.mocked(fs.existsSync).mockReturnValue(true);
     const client = await getFreshClient();
-    (client as unknown as TestableClient).persistRefreshToken("rt_rotated_002");
+    await (client as unknown as TestableClient).persistRefreshToken("rt_rotated_002");
     expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
       "/tmp/test-refresh-token.tmp",
       "rt_rotated_002",
@@ -467,5 +511,184 @@ describe("authenticate()", () => {
     const mod = await import("../../clients/xero-client.js");
     const client = mod.xeroClient;
     await expect(client.authenticate()).rejects.toThrow(/XERO_REFRESH_TOKEN/);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Section 7: resolveRefreshToken() — redis mode (A4)
+// ────────────────────────────────────────────────────────────────────────────
+describe("resolveRefreshToken() — redis mode", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("XERO_CLIENT_ID", "ABC123");
+    vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
+    vi.stubEnv("XERO_TOKEN_STORE", "redis");
+    vi.stubEnv("REDIS_URL", "redis://localhost:6379/0");
+    mockRedisClient.connect.mockResolvedValue(undefined);
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockResolvedValue("OK");
+    vi.mocked(redis.createClient).mockClear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("test_redis_resolvesFromKey: get returns stored token → resolveRefreshToken returns it; readFileSync not called", async () => {
+    mockRedisClient.get.mockResolvedValueOnce("rt_redis_stored_001");
+    const client = await getFreshClient();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
+    expect(result).toBe("rt_redis_stored_001");
+    expect(vi.mocked(fs.readFileSync)).not.toHaveBeenCalled();
+  });
+
+  it("test_redis_seedsFromEnvWhenKeyAbsent: get returns null, env set → returns env seed", async () => {
+    mockRedisClient.get.mockResolvedValueOnce(null);
+    vi.stubEnv("XERO_REFRESH_TOKEN", "rt_env_seed_003");
+    const client = await getFreshClient();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
+    expect(result).toBe("rt_env_seed_003");
+  });
+
+  it("test_redis_throwsWhenKeyAndEnvAbsent: get returns null, env unset → throws with guidance", async () => {
+    mockRedisClient.get.mockResolvedValueOnce(null);
+    vi.stubEnv("XERO_REFRESH_TOKEN", "");
+    const client = await getFreshClient();
+    await expect(
+      (client as unknown as TestableClient).resolveRefreshToken()
+    ).rejects.toThrow(/XERO_REFRESH_TOKEN.*api-explorer\.xero\.com/);
+  });
+
+  it("test_redis_usesCustomKeyName: XERO_TOKEN_REDIS_KEY=custom:token:key → get called with that key", async () => {
+    vi.stubEnv("XERO_TOKEN_REDIS_KEY", "custom:token:key");
+    mockRedisClient.get.mockResolvedValueOnce("rt_custom_key_001");
+    const client = await getFreshClient();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
+    expect(result).toBe("rt_custom_key_001");
+    expect(mockRedisClient.get).toHaveBeenCalledWith("custom:token:key");
+  });
+
+  it("test_redis_failLoudWhenRedisUrlMissing: REDIS_URL empty → rejects with REDIS_URL message", async () => {
+    vi.stubEnv("REDIS_URL", "");
+    const client = await getFreshClient();
+    await expect(
+      (client as unknown as TestableClient).resolveRefreshToken()
+    ).rejects.toThrow("REDIS_URL is required when XERO_TOKEN_STORE=redis");
+  });
+
+  it("test_redis_failLoudWhenRedisUnreachable: connect rejects → resolveRefreshToken rejects", async () => {
+    mockRedisClient.connect.mockRejectedValueOnce(new Error("Connection refused"));
+    const client = await getFreshClient();
+    await expect(
+      (client as unknown as TestableClient).resolveRefreshToken()
+    ).rejects.toThrow("Connection refused");
+  });
+
+  it("test_fileModeDefault_doesNotCallRedis: XERO_TOKEN_STORE unset → createClient not called", async () => {
+    vi.stubEnv("XERO_TOKEN_STORE", "");
+    vi.mocked(fs.readFileSync).mockReturnValue("rt_file_token_001");
+    const client = await getFreshClient();
+    const result = await (client as unknown as TestableClient).resolveRefreshToken();
+    expect(result).toBe("rt_file_token_001");
+    expect(vi.mocked(redis.createClient)).not.toHaveBeenCalled();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Section 8: persistRefreshToken() and scheduleRefresh() — redis mode (A5)
+// ────────────────────────────────────────────────────────────────────────────
+describe("persistRefreshToken() — redis mode", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("XERO_CLIENT_ID", "ABC123");
+    vi.stubEnv("XERO_CLIENT_SECRET", "DEF456");
+    vi.stubEnv("XERO_TOKEN_STORE", "redis");
+    vi.stubEnv("REDIS_URL", "redis://localhost:6379/0");
+    // Explicitly set the default key to prevent leakage from prior stubs
+    vi.stubEnv("XERO_TOKEN_REDIS_KEY", "xero:refresh_token");
+    mockRedisClient.connect.mockResolvedValue(undefined);
+    mockRedisClient.get.mockReset();
+    mockRedisClient.set.mockResolvedValue("OK");
+    vi.mocked(redis.createClient).mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("test_redis_persistWritesToRedisKey: persistRefreshToken calls redis.set with default key; writeFileSync and renameSync not called", async () => {
+    const client = await getFreshClient();
+    await (client as unknown as TestableClient).persistRefreshToken("rt_rotated_004");
+    expect(mockRedisClient.set).toHaveBeenCalledWith("xero:refresh_token", "rt_rotated_004");
+    expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled();
+    expect(vi.mocked(fs.renameSync)).not.toHaveBeenCalled();
+  });
+
+  it("test_redis_scheduledRefreshPersistsToRedis: timer fires in redis mode → redis.set called; writeFileSync not called", async () => {
+    vi.useFakeTimers();
+    // Resolve token from Redis (key present)
+    mockRedisClient.get.mockResolvedValue("rt_redis_current");
+    // First exchange (during authenticate)
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: {
+        access_token: "at_initial",
+        refresh_token: "rt_redis_current",
+        expires_in: 1800,
+        token_type: "Bearer",
+      },
+    });
+    const mod = await import("../../clients/xero-client.js");
+    const client = mod.xeroClient;
+    vi.spyOn(client as unknown as TestableClient, "updateTenants").mockResolvedValue([]);
+    await client.authenticate();
+
+    // Set up the scheduled refresh exchange response
+    vi.mocked(axios.post).mockClear();
+    mockRedisClient.set.mockClear();
+    vi.mocked(fs.writeFileSync).mockClear();
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: {
+        access_token: "at_renewed",
+        refresh_token: "rt_rotated_redis_004",
+        expires_in: 1800,
+        token_type: "Bearer",
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync((1800 - 300) * 1000);
+
+    expect(mockRedisClient.set).toHaveBeenCalledWith("xero:refresh_token", "rt_rotated_redis_004");
+    expect(vi.mocked(fs.writeFileSync)).not.toHaveBeenCalled();
+  });
+
+  it("test_redis_scheduledRefreshFailureExitsProcess: timer fires, exchange rejects → process.exit(1) called", async () => {
+    vi.useFakeTimers();
+    mockRedisClient.get.mockResolvedValue("rt_redis_current");
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: {
+        access_token: "at_initial",
+        refresh_token: "rt_redis_current",
+        expires_in: 1800,
+        token_type: "Bearer",
+      },
+    });
+    const mod = await import("../../clients/xero-client.js");
+    const client = mod.xeroClient;
+    vi.spyOn(client as unknown as TestableClient, "updateTenants").mockResolvedValue([]);
+    await client.authenticate();
+
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    vi.mocked(axios.post).mockClear();
+    vi.mocked(axios.post).mockRejectedValue(makeAxiosError(400, { error: "invalid_grant" }));
+
+    await vi.advanceTimersByTimeAsync((1800 - 300) * 1000);
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+
+    stderrSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 });
