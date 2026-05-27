@@ -367,7 +367,7 @@ Note: `createSession()` is `async` because `server.connect(transport)` is async.
 
 **Location:** `.env.example` (root)
 
-**Changes:** Append a clearly-marked section after the existing Xero entries. The three upstream entries remain byte-for-byte identical. Style mirrors cin7-mcp's `.env.example`:
+**Changes:** Append a clearly-marked section after the existing Xero entries. The existing Xero entries (established by feature 001, not upstream) remain byte-for-byte identical. Style mirrors cin7-mcp's `.env.example`:
 
 ```
 # -- OSB HTTP Mode (src/http/server.ts) --------------------------------------------------------

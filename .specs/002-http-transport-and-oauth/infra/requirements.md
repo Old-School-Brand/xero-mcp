@@ -144,10 +144,10 @@ It also carries one **backend prerequisite** the deployment design forced: the r
   - When: `helm template charts/xero-mcp` is grepped
   - Then: there is no `kind: PersistentVolumeClaim` and no `persistentVolumeClaim` volume
 
-- [ ] Token-store rationale captured in `design.md` (no standalone ADR)
-- [ ] `.env.example` updated with `XERO_TOKEN_STORE` (+ `XERO_TOKEN_REDIS_KEY` if used); existing entries unchanged
-- [ ] `.specs/REPO.md` and `.specs/GLOSSARY.md` updated
-- [ ] Only new files + `src/clients/xero-client.ts` are changed (no other existing `src/` file touched)
+- [x] Token-store rationale captured in `design.md` (no standalone ADR)
+- [x] `.env.example` updated with `XERO_TOKEN_STORE` (+ `XERO_TOKEN_REDIS_KEY` if used); existing entries unchanged
+- [x] `.specs/REPO.md` and `.specs/GLOSSARY.md` updated
+- [x] Only new files + `src/clients/xero-client.ts` are changed (no other existing `src/` file touched)
 
 ## Dependencies
 

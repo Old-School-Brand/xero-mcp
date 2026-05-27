@@ -27,7 +27,7 @@ The sibling server cin7-mcp solved the same problem (cin7-mcp ADR-0002) by persi
    - The deployment's Redis instance is not internet-exposed; access requires cluster-internal connectivity.
    - Adding encryption at rest is additive -- the `RedisOAuthClientsStore` interface does not change. A wrapper can be inserted later without touching callers.
 
-4. **`oauth:` key prefix** for namespace hygiene, matching cin7-mcp's convention. Distinct from any future response cache or rate-limit keys.
+4. **`oauth:` key prefix** for namespace hygiene, matching cin7-mcp's convention. Distinct from any future response cache or rate-limit keys. (Note: feature 002-http-transport-and-oauth/infra later added a second Redis consumer for Xero refresh-token persistence under the `xero:` prefix — see ADR-0001's 2026-05-27 amendment. That is an ADR-0001 concern, not OAuth/DCR state; the two prefixes are deliberately disjoint.)
 
 5. **Redis is a hard dependency in non-local mode.** Startup probes Redis with `PING`; failure crashes the process. `/readyz` checks Redis health continuously. In `ENVIRONMENT=local`, Redis is not used (the `LocalBearerVerifier` has no DCR state).
 

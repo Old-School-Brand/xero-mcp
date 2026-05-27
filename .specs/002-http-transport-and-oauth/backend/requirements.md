@@ -117,7 +117,7 @@ Critically, this must be additive. The upstream `XeroAPI/xero-mcp-server` reposi
 
 ### Documentation
 
-22. **FR-22 — `.env.example` updated additively.** The existing three Xero entries at the top of `.env.example` MUST remain byte-for-byte identical. A new clearly-marked section MUST be appended with the OSB env vars (`ENVIRONMENT`, `MCP_BIND_HOST`, `MCP_BIND_PORT`, `LOG_LEVEL`, `DEV_BEARER_TOKEN`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MCP_SERVER_URL`, `ENTRA_REQUIRED_SCOPES`, `REDIS_URL`, `MCP_SESSION_IDLE_TIMEOUT_SECONDS`, `MCP_MAX_SESSIONS`), with comments in the cin7-mcp `.env.example` style. (`ENTRA_CLIENT_SECRET` was removed in build iteration 3 — see ADR-0002.)
+22. **FR-22 — `.env.example` updated additively.** The existing Xero entries at the top of `.env.example` (established by feature 001, not upstream) MUST remain byte-for-byte identical. A new clearly-marked section MUST be appended with the OSB env vars (`ENVIRONMENT`, `MCP_BIND_HOST`, `MCP_BIND_PORT`, `LOG_LEVEL`, `DEV_BEARER_TOKEN`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `MCP_SERVER_URL`, `ENTRA_REQUIRED_SCOPES`, `REDIS_URL`, `MCP_SESSION_IDLE_TIMEOUT_SECONDS`, `MCP_MAX_SESSIONS`), with comments in the cin7-mcp `.env.example` style. (`ENTRA_CLIENT_SECRET` was removed in build iteration 3 — see ADR-0002.)
 
 23. **FR-23 — `package.json` additive edits only.** New dependencies (`express`, `jose`, `redis`, `pino`, `pino-http`) and dev dependencies (`@types/express`, `supertest`, `@types/supertest`) MUST be appended alphabetically. A new script `"start:http": "node dist/http/server.js"` MUST be added. A new bin entry `"xero-mcp-http": "./dist/http/server.js"` MUST be added beside the existing default bin. No existing entries removed or reordered.
 
@@ -223,7 +223,7 @@ Critically, this must be additive. The upstream `XeroAPI/xero-mcp-server` reposi
   - Then: `serverInfo.name` equals the upstream `package.json` `name` and `serverInfo.version` equals the upstream `version`
 
 - [x] Two ADRs (`0002-mcp-http-transport-and-oauth.md`, `0003-oauth-state-in-redis.md`) drafted in `.specs/adr/` using the existing template, signed off as `Accepted`.
-- [x] `.env.example` updated additively with the new OSB section; the three upstream entries remain byte-for-byte identical above it.
+- [x] `.env.example` updated additively with the new OSB section; the existing feature-001 Xero entries remain byte-for-byte identical above it.
 - [x] `.specs/REPO.md` § Upstream Sync updated with a note that "OSB-specific additions live under `src/http/`; never modify upstream-owned files in `src/`."
 - [x] `.specs/PRD.md` § 7 Features updated to list this feature.
 
