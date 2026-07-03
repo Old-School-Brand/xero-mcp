@@ -23,6 +23,12 @@ RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
+# The runtime entrypoint is `node dist/http/server.js` — npm is never used at
+# runtime. Removing the npm bundled with the base image drops its vulnerable
+# transitive deps (e.g. picomatch, sigstore) from the image and shrinks the
+# attack surface. The builder stage keeps npm for `npm ci` / `npm run build`.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 RUN groupadd -g 10001 appgroup \
  && useradd -u 10001 -g appgroup -s /sbin/nologin -M appuser \
  && chown -R appuser:appgroup /app

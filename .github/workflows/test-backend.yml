@@ -16,6 +16,13 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Create .env from example
+        # xero-client.ts reads XERO_CLIENT_ID/SECRET at module load and throws
+        # if unset. Unit tests import the tool tree (which imports the client),
+        # so the placeholder values in .env.example are needed to satisfy the
+        # check. No test reaches Xero over the network.
+        run: cp .env.example .env
+
       - name: Install dependencies
         run: npm ci
 
