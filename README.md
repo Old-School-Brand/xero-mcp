@@ -5,9 +5,8 @@ This is a Model Context Protocol (MCP) server implementation for Xero. It provid
 ## Features
 
 - Xero OAuth2 Refresh Token authentication
-- Contact management
-- Chart of Accounts management
-- Invoice creation and management
+- Read-only by default — write tools (create/update/delete) are opt-in via `XERO_READONLY=false`
+- Contacts, accounts, invoices, payments, bank transactions, and reports
 - MCP protocol compliance
 
 ## Prerequisites
@@ -43,18 +42,50 @@ This server uses **Refresh Token** mode. At startup it exchanges a stored refres
 1. Go to [https://developer.xero.com/app/manage](https://developer.xero.com/app/manage) and sign in.
 2. Click **New app**.
 3. Choose **Web app** as the app type.
-4. Fill in a name and any redirect URI (e.g. `https://localhost`). The redirect URI is only used during the one-time token acquisition step below.
-5. After saving, copy the **Client ID** and **Client Secret** — you will need these as env vars.
+4. Fill in a name and set the **OAuth 2.0 redirect URI** to `http://localhost:8080/callback`. It is only used during the one-time token acquisition step below, but it must match *exactly* there. Note: `http://localhost` is accepted but `http://127.0.0.1` is **not** — use `localhost`.
+5. After saving, open the app → **Configuration** and copy the **Client ID**. Click **Generate a secret** and copy the **Client Secret** immediately (Xero only shows it once). You will need both as env vars.
 
 #### Step 2 — Obtain an initial refresh token
 
-Use the [Xero API Explorer](https://api-explorer.xero.com) to obtain a refresh token for your Web Application:
+Xero uses the OAuth2 **authorization code** flow. There is no way around a one-time manual bootstrap to mint the first refresh token; the server then keeps it alive automatically thereafter (see [Authentication](#authentication) above). Do this once with `curl` — you'll need a terminal with `curl` and `jq`, and your app's Client ID / Client Secret exported once:
 
-1. Navigate to [https://api-explorer.xero.com](https://api-explorer.xero.com).
-2. Click **Authorise** and enter your Client ID and Client Secret.
-3. Select the scopes you need (see [Required Scopes](#required-scopes) below).
-4. Complete the OAuth2 flow and authorise your Xero organisation.
-5. The API Explorer will display a **refresh token**. Copy it — this is your `XERO_REFRESH_TOKEN`.
+```bash
+export CLIENT_ID="<your app client id>"
+export CLIENT_SECRET="<your app client secret>"
+```
+
+**1. Get an authorization code.** Open this URL in a browser (replace `<CLIENT_ID>`). It sends you through Xero's login + org-consent screen. The `scope` value here is the **read-only** granular set this server needs by default — see [Required Scopes](#required-scopes) below for the mapping and for the extra write scopes if you enable write tools.
+
+```
+https://login.xero.com/identity/connect/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&scope=openid%20profile%20email%20offline_access%20accounting.contacts.read%20accounting.settings.read%20accounting.invoices.read%20accounting.payments.read%20accounting.banktransactions.read%20accounting.manualjournals.read%20accounting.reports.profitandloss.read%20accounting.reports.balancesheet.read%20accounting.reports.trialbalance.read%20payroll.employees.read%20payroll.timesheets.read%20payroll.settings.read&state=xero-mcp-bootstrap
+```
+
+After you approve, Xero redirects to `http://localhost:8080/callback?code=...&state=xero-mcp-bootstrap`. Nothing is listening on port 8080, so the browser shows a connection error — **that's expected**. Copy the `code` value straight out of the address bar. The code is **single-use and expires after 5 minutes**, so move on promptly.
+
+```bash
+export CODE="<the code from the redirect URL>"
+```
+
+**2. Exchange the code for tokens:**
+
+```bash
+curl -sX POST https://identity.xero.com/connect/token \
+  -u "$CLIENT_ID:$CLIENT_SECRET" \
+  -d "grant_type=authorization_code&code=$CODE&redirect_uri=http://localhost:8080/callback" \
+  | jq
+```
+
+The response contains the `refresh_token` you need — this is your `XERO_REFRESH_TOKEN`:
+
+```json
+{
+  "access_token": "...",   // valid 30 minutes
+  "refresh_token": "...",  // valid 60 days, rotates on every refresh — this is what the server stores
+  "expires_in": 1800,
+  "token_type": "Bearer",
+  "id_token": "..."
+}
+```
 
 #### Step 3 — Configure environment variables
 
@@ -74,19 +105,35 @@ To use a custom token file location, set `XERO_TOKEN_FILE=/path/to/refresh_token
 
 #### Required Scopes
 
-When authorising in the API Explorer, request the scopes that match the Xero APIs you intend to use. A typical set:
+Request the scopes that match the Xero APIs you intend to use. `offline_access` is what makes Xero return a `refresh_token` at all — without it the connection cannot be maintained.
+
+> **Use granular scopes, not the broad ones.** Xero is retiring the broad scopes (`accounting.transactions`, `accounting.reports.read`, etc.). **Apps created on or after 2 March 2026 can only request the granular scopes** (apps created before then keep the broad scopes until September 2027). Since any app you create now is granular-only, the broad scopes will not be selectable — use the granular set below. This is the most likely reason an older token-bootstrap flow fails.
+
+This server runs **read-only by default** ([Tool exposure](#tool-exposure) below), so mint a **read-only-scoped** token unless you have explicitly enabled write tools. The granular read scopes below match the read tools (`list-*`, `get-*`):
 
 ```
-accounting.transactions
-accounting.contacts
-accounting.settings
-accounting.reports.read
-payroll.settings
-payroll.employees
-payroll.timesheets
+openid profile email
+offline_access
+
+accounting.contacts.read             # contacts, contact groups
+accounting.settings.read             # accounts, items, tax rates, tracking categories, organisation
+accounting.invoices.read             # invoices, credit notes, quotes
+accounting.payments.read             # payments
+accounting.banktransactions.read     # bank transactions
+accounting.manualjournals.read       # manual journals
+
+accounting.reports.profitandloss.read
+accounting.reports.balancesheet.read
+accounting.reports.trialbalance.read
+
+payroll.employees.read               # payroll employees, leave
+payroll.timesheets.read              # timesheets
+payroll.settings.read                # payroll leave types
 ```
 
-See the [Xero OAuth 2.0 Scopes documentation](https://developer.xero.com/documentation/guides/oauth2/scopes/) for the full list.
+**If you enable write tools** (`XERO_READONLY=false`), swap the read/write variants — the same scope strings without the `.read` suffix grant write access too: `accounting.contacts`, `accounting.settings`, `accounting.invoices`, `accounting.payments`, `accounting.banktransactions`, `accounting.manualjournals`, and `payroll.timesheets`. Reports are read-only regardless.
+
+> The aged receivables/payables reports also require a reports scope. The exact granular scopes available to *your* app are listed on its **Configuration → Authorisation** page in the developer portal — request every one there that matches the tools you'll use. See the [Xero OAuth 2.0 Scopes documentation](https://developer.xero.com/documentation/guides/oauth2/scopes/) and [Granular Scopes FAQs](https://developer.xero.com/faq/granular-scopes) for the full reference.
 
 #### Integrating the MCP server with Claude Desktop
 
@@ -114,6 +161,12 @@ NOTE: If you are using [Node Version Manager](https://github.com/nvm-sh/nvm) `"c
 
 ### Available MCP Commands
 
+#### Tool exposure
+
+The server runs **read-only by default** — only the read tools below are registered and advertised. To also expose the write tools, set `XERO_READONLY=false`. Pair the choice with the matching token scopes (see [Required Scopes](#required-scopes)): a read-only deployment should use a read-only-scoped refresh token so least privilege is enforced at Xero, not just in this server.
+
+#### Read tools (available by default)
+
 - `list-accounts`: Retrieve a list of accounts
 - `list-contacts`: Retrieve a list of contacts from Xero
 - `list-credit-notes`: Retrieve a list of credit notes
@@ -139,6 +192,10 @@ NOTE: If you are using [Node Version Manager](https://github.com/nvm-sh/nvm) `"c
 - `list-aged-payables-by-contact`: Retrieves aged payables for a contact
 - `list-contact-groups`: Retrieve a list of contact groups
 - `list-tracking-categories`: Retrieve a list of tracking categories
+- `get-payroll-timesheet`: Retrieve an existing Payroll Timesheet
+
+#### Write tools (require `XERO_READONLY=false`)
+
 - `create-bank-transaction`: Create a new bank transaction
 - `create-contact`: Create a new contact
 - `create-credit-note`: Create a new credit note
@@ -164,7 +221,6 @@ NOTE: If you are using [Node Version Manager](https://github.com/nvm-sh/nvm) `"c
 - `revert-payroll-timesheet`: Revert an approved Payroll Timesheet
 - `add-payroll-timesheet-line`: Add new line on an existing Payroll Timesheet
 - `delete-payroll-timesheet`: Delete an existing Payroll Timesheet
-- `get-payroll-timesheet`: Retrieve an existing Payroll Timesheet
 
 For detailed API documentation, please refer to the [MCP Protocol Specification](https://modelcontextprotocol.io/).
 

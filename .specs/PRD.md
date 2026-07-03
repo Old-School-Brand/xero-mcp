@@ -82,6 +82,7 @@ A subset of CLAUDE.md's engineering principles that genuinely bind decisions in 
 ## 7. Features
 
 - **001-oauth2-web-app-auth** (backend) — Replace Custom Connection + Bearer Token auth with a single Refresh Token mode that works with Xero Web Applications (available to all regions).
+- **002-http-transport-and-oauth** (backend, infra) — Add a Streamable HTTP entry point with Entra ID OAuth (DCR + Redis-backed clients store) alongside the existing stdio entry, and the container/compose/Helm artefacts to deploy it. All new source under `src/http/` so upstream merges stay clean.
 
 ---
 

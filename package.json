@@ -10,36 +10,49 @@
   },
   "author": "Xero (https://xero.com)",
   "type": "module",
-  "bin": "./dist/index.js",
+  "bin": {
+    "xero-mcp-server": "./dist/index.js",
+    "xero-mcp-http": "./dist/http/server.js"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc && shx chmod +x dist/*.js",
+    "build": "tsc && shx chmod +x dist/*.js dist/http/*.js",
     "prepare": "npm run build",
+    "start:http": "node dist/http/server.js",
     "watch": "tsc --watch",
-    "lint:fix": "eslint --fix",
-    "lint": "eslint .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint:fix": "eslint --fix",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.4",
     "axios": "^1.16.1",
     "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "jose": "^6.2.3",
     "openid-client": "^6.8.1",
+    "pino": "^9.14.0",
+    "pino-http": "^10.5.0",
+    "redis": "^4.7.1",
     "xero-node": "^13.3.0",
     "zod": "3.25"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.13.10",
+    "@types/supertest": "^7.2.0",
     "@vitest/coverage-v8": "^4.1.7",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^16.5.0",
     "prettier": "3.7.4",
     "shx": "^0.3.4",
+    "supertest": "^7.2.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1",
     "vitest": "^4.1.7"

@@ -142,3 +142,6 @@ dist
 
 # Cursor IDE
 .cursor/
+
+# Xero refresh token directory (written by docker compose in file mode)
+.xero-mcp/

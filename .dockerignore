@@ -1,0 +1,13 @@
+.git/
+.github/
+.specs/
+.claude/
+.vscode/
+coverage/
+node_modules/
+dist/
+compose*.yml
+charts/
+.env*
+*.md
+.xero-mcp/
