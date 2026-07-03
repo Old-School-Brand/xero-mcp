@@ -1,0 +1,76 @@
+name: Lint Helm
+
+on:
+  workflow_call:
+
+jobs:
+  lint-helm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: helm lint
+        run: helm lint ./charts/xero-mcp
+
+      - name: helm template — default (no ingress)
+        run: helm template ./charts/xero-mcp > /tmp/render-default.yaml
+
+      - name: helm template — ingress enabled with host
+        run: |
+          helm template ./charts/xero-mcp \
+            --set ingress.enabled=true \
+            --set ingress.host=xero.tail.ts.net \
+            > /tmp/render-ingress.yaml
+
+      - name: helm template — ingress without host must fail
+        run: |
+          # Asserts the chart's required-value guard fires when ingress.enabled=true
+          # without a host. If `helm template` succeeds here, the guard regressed.
+          if helm template ./charts/xero-mcp --set ingress.enabled=true > /dev/null 2>&1; then
+            echo "::error::helm template should have failed when ingress.enabled=true and ingress.host is empty"
+            exit 1
+          fi
+
+      - name: Assert default render produces Deployment + Service, no Ingress, no PVC
+        run: |
+          DEPLOY_COUNT=$(grep -c '^kind: Deployment$' /tmp/render-default.yaml || true)
+          SERVICE_COUNT=$(grep -c '^kind: Service$' /tmp/render-default.yaml || true)
+          INGRESS_COUNT=$(grep -c '^kind: Ingress$' /tmp/render-default.yaml || true)
+          PVC_COUNT=$(grep -c '^kind: PersistentVolumeClaim$' /tmp/render-default.yaml || true)
+          echo "Deployment=$DEPLOY_COUNT Service=$SERVICE_COUNT Ingress=$INGRESS_COUNT PVC=$PVC_COUNT"
+          test "$DEPLOY_COUNT" = "1"
+          test "$SERVICE_COUNT" = "1"
+          test "$INGRESS_COUNT" = "0"
+          test "$PVC_COUNT" = "0"
+
+      - name: Assert ingress render adds Tailscale Ingress
+        run: |
+          INGRESS_COUNT=$(grep -c '^kind: Ingress$' /tmp/render-ingress.yaml || true)
+          test "$INGRESS_COUNT" = "1"
+          grep -q 'ingressClassName: tailscale' /tmp/render-ingress.yaml
+
+      - name: Assert Deployment hardening + single replica
+        run: |
+          grep -q 'replicas: 1' /tmp/render-default.yaml
+          grep -q 'runAsNonRoot: true' /tmp/render-default.yaml
+          grep -q 'runAsUser: 10001' /tmp/render-default.yaml
+          grep -q 'readOnlyRootFilesystem: true' /tmp/render-default.yaml
+          grep -q 'livenessProbe:' /tmp/render-default.yaml
+          grep -q 'readinessProbe:' /tmp/render-default.yaml
+
+      - name: Assert chart-managed XERO_TOKEN_STORE=redis is always set
+        run: |
+          grep -A1 'name: XERO_TOKEN_STORE' /tmp/render-default.yaml | grep -q '"redis"'
+
+      - name: Assert auth values propagate to env vars
+        run: |
+          helm template ./charts/xero-mcp \
+            --set auth.publicUrl=https://xero.example.com/ \
+            --set auth.requiredScopes=mcp \
+            > /tmp/render-auth.yaml
+          grep -A1 'name: MCP_SERVER_URL' /tmp/render-auth.yaml | grep -q 'https://xero.example.com/'
+          grep -A1 'name: ENTRA_REQUIRED_SCOPES' /tmp/render-auth.yaml | grep -q '"mcp"'

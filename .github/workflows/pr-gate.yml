@@ -1,0 +1,49 @@
+name: PR Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test-backend:
+    uses: ./.github/workflows/test-backend.yml
+    secrets: inherit
+
+  test-docker-compose:
+    uses: ./.github/workflows/test-docker-compose.yml
+    secrets: inherit
+
+  lint-helm:
+    uses: ./.github/workflows/lint-helm.yml
+    secrets: inherit
+
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: xero-mcp/backend:trivy-scan
+          cache-from: type=gha,scope=backend
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: xero-mcp/backend:trivy-scan
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
