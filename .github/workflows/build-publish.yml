@@ -74,7 +74,11 @@ jobs:
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-          exit-code: '1'
+          # Report-only here: in SARIF mode the action scans all severities and
+          # includes unfixed CVEs, so exit-code 1 would fail on the base image's
+          # unfixable Debian CVEs. The authoritative CRITICAL/HIGH gate is the
+          # table-format scan in pr-gate. (Matches plm-lite's build-publish.)
+          exit-code: '0'
       - name: Upload Trivy scan results
         if: always()
         uses: actions/upload-artifact@v7
