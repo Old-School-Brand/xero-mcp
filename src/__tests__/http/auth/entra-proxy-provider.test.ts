@@ -1,9 +1,12 @@
 /*
- * EntraProxyOAuthServerProvider — rewrites the outbound OAuth `scope` and `resource`
- * so Microsoft Entra accepts them (fixes AADSTS9010010). The stock ProxyOAuthServerProvider
- * forwards the client's bare `scope=mcp` + the MCP server URL as `resource`, which Entra
- * rejects. This subclass must send `scope=api://<clientId>/mcp` and `resource=api://<clientId>`
- * on authorize, the auth-code exchange, and the refresh exchange.
+ * EntraProxyOAuthServerProvider — rewrites the outbound OAuth request so Microsoft Entra
+ * accepts it. The stock ProxyOAuthServerProvider forwards the DCR client's identity
+ * (random client_id), bare `scope=mcp`, and the MCP server URL as `resource` verbatim,
+ * all of which Entra rejects. This subclass must send, on authorize + both token exchanges:
+ *   - client_id = ENTRA_CLIENT_ID (the real App Registration, not the DCR id)
+ *   - client_secret = ENTRA_CLIENT_SECRET, but ONLY when configured (guard)
+ *   - scope = api://<clientId>/mcp
+ *   - resource = api://<clientId>
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -14,10 +17,12 @@ import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/share
 import { EntraProxyOAuthServerProvider } from "../../../http/auth/build.js";
 
 const CLIENT_ID = "11111111-2222-3333-4444-555555555555";
+const CLIENT_SECRET = "entra-secret-value";
 const ENDPOINTS = {
   authorizationUrl: "https://login.microsoftonline.com/tenant-abc/oauth2/v2.0/authorize",
   tokenUrl: "https://login.microsoftonline.com/tenant-abc/oauth2/v2.0/token",
 };
+// The DCR client the MCP client registered with us — random id, no secret (public).
 const CLIENT = {
   client_id: "dcr-client-1",
   redirect_uris: ["http://localhost:9999/callback"],
@@ -29,7 +34,7 @@ const tokenResponse: FetchLike = async () =>
     headers: { "content-type": "application/json" },
   });
 
-function makeProvider(fetchImpl?: FetchLike): EntraProxyOAuthServerProvider {
+function makeProvider(fetchImpl?: FetchLike, clientSecret?: string): EntraProxyOAuthServerProvider {
   return new EntraProxyOAuthServerProvider(
     {
       endpoints: ENDPOINTS,
@@ -39,15 +44,16 @@ function makeProvider(fetchImpl?: FetchLike): EntraProxyOAuthServerProvider {
     },
     CLIENT_ID,
     "mcp",
+    clientSecret,
   );
 }
 
-describe("EntraProxyOAuthServerProvider — Entra scope/resource rewrite", () => {
-  it("authorize sends a fully-qualified scope and App-ID-URI resource", async () => {
+describe("EntraProxyOAuthServerProvider — Entra identity/scope/resource rewrite", () => {
+  it("authorize sends ENTRA_CLIENT_ID, a fully-qualified scope, and App-ID-URI resource", async () => {
     let redirectedUrl = "";
     const res = { redirect: (url: string) => (redirectedUrl = url) } as unknown as Response;
 
-    await makeProvider().authorize(
+    await makeProvider(undefined, CLIENT_SECRET).authorize(
       CLIENT,
       {
         redirectUri: "http://localhost:9999/callback",
@@ -60,38 +66,59 @@ describe("EntraProxyOAuthServerProvider — Entra scope/resource rewrite", () =>
     );
 
     const params = new URL(redirectedUrl).searchParams;
+    expect(params.get("client_id")).toBe(CLIENT_ID); // NOT the DCR "dcr-client-1"
     expect(params.get("scope")).toBe(`api://${CLIENT_ID}/mcp`);
     expect(params.get("resource")).toBe(`api://${CLIENT_ID}`);
   });
 
-  it("exchangeAuthorizationCode sends the App-ID-URI resource, not the client's", async () => {
+  it("exchangeAuthorizationCode sends ENTRA_CLIENT_ID + secret + App-ID-URI resource", async () => {
     let body = "";
     const fetchImpl = vi.fn<FetchLike>(async (_url, init) => {
       body = String(init?.body ?? "");
       return tokenResponse(_url, init);
     });
 
-    await makeProvider(fetchImpl).exchangeAuthorizationCode(
+    await makeProvider(fetchImpl, CLIENT_SECRET).exchangeAuthorizationCode(
       CLIENT,
       "code-123",
       "verifier",
       "http://localhost:9999/callback",
     );
 
-    expect(new URLSearchParams(body).get("resource")).toBe(`api://${CLIENT_ID}`);
+    const params = new URLSearchParams(body);
+    expect(params.get("client_id")).toBe(CLIENT_ID);
+    expect(params.get("client_secret")).toBe(CLIENT_SECRET);
+    expect(params.get("resource")).toBe(`api://${CLIENT_ID}`);
   });
 
-  it("exchangeRefreshToken sends the fully-qualified scope and App-ID-URI resource", async () => {
+  it("exchangeRefreshToken sends ENTRA_CLIENT_ID + secret + fully-qualified scope + resource", async () => {
     let body = "";
     const fetchImpl = vi.fn<FetchLike>(async (_url, init) => {
       body = String(init?.body ?? "");
       return tokenResponse(_url, init);
     });
 
-    await makeProvider(fetchImpl).exchangeRefreshToken(CLIENT, "refresh-token");
+    await makeProvider(fetchImpl, CLIENT_SECRET).exchangeRefreshToken(CLIENT, "refresh-token");
 
     const params = new URLSearchParams(body);
+    expect(params.get("client_id")).toBe(CLIENT_ID);
+    expect(params.get("client_secret")).toBe(CLIENT_SECRET);
     expect(params.get("scope")).toBe(`api://${CLIENT_ID}/mcp`);
     expect(params.get("resource")).toBe(`api://${CLIENT_ID}`);
+  });
+
+  it("guard: with no client secret configured, no client_secret is sent (public/PKCE)", async () => {
+    let body = "";
+    const fetchImpl = vi.fn<FetchLike>(async (_url, init) => {
+      body = String(init?.body ?? "");
+      return tokenResponse(_url, init);
+    });
+
+    // No secret passed to makeProvider → guard off.
+    await makeProvider(fetchImpl).exchangeAuthorizationCode(CLIENT, "code-123", "verifier", "http://localhost:9999/callback");
+
+    const params = new URLSearchParams(body);
+    expect(params.get("client_id")).toBe(CLIENT_ID); // still substitutes the app id
+    expect(params.get("client_secret")).toBeNull(); // but sends no secret
   });
 });

@@ -12,6 +12,9 @@ const BaseSettingsSchema = z
     DEV_BEARER_TOKEN: z.string().optional(),
     ENTRA_TENANT_ID: z.string().optional(),
     ENTRA_CLIENT_ID: z.string().optional(),
+    // Optional (guard): when set, the OAuth proxy sends it to Entra on token exchange
+    // (confidential client). Absent = public/PKCE flow. Not in nonLocalRequired.
+    ENTRA_CLIENT_SECRET: z.string().optional(),
     MCP_SERVER_URL: z.string().optional(),
     ENTRA_REQUIRED_SCOPES: z.string().optional(),
     REDIS_URL: z.string().optional(),
@@ -65,6 +68,7 @@ export type NonLocalSettings = {
   MCP_MAX_SESSIONS: number;
   ENTRA_TENANT_ID: string;
   ENTRA_CLIENT_ID: string;
+  ENTRA_CLIENT_SECRET?: string;
   MCP_SERVER_URL: string;
   ENTRA_REQUIRED_SCOPES: string;
   REDIS_URL: string;

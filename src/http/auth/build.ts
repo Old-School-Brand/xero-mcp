@@ -10,27 +10,48 @@ import { RedisOAuthClientsStore } from "./redis-clients-store.js";
 import type { LocalSettings, NonLocalSettings, Settings } from "../settings.js";
 
 /**
- * ProxyOAuthServerProvider forwards the MCP client's `scope` and RFC 8707 `resource`
- * to the upstream verbatim. Microsoft Entra rejects the bare `mcp` scope plus the MCP
- * server URL as `resource` (AADSTS9010010) — it needs a fully-qualified scope
- * (`api://<client_id>/mcp`) and an App-ID-URI `resource` (`api://<client_id>`). This
- * subclass rewrites both on every outbound authorize/token request. The token Entra
- * returns still carries `aud=api://<client_id>` and `scp="mcp"` (Entra strips the
- * `api://<client_id>/` prefix in `scp`), which is exactly what EntraVerifier checks —
- * so the verifier and ENTRA_REQUIRED_SCOPES=mcp are unaffected.
+ * ProxyOAuthServerProvider forwards the DCR client's identity (`client_id`/`client_secret`),
+ * `scope`, and RFC 8707 `resource` to the upstream verbatim. Microsoft Entra rejects all of
+ * these as-is:
+ *   - the random per-client DCR `client_id` isn't a registered app (invalid_client),
+ *   - the bare `mcp` scope + the MCP server URL as `resource` fail with AADSTS9010010.
+ * Entra only knows the App Registration (`ENTRA_CLIENT_ID`) and needs a fully-qualified scope
+ * (`api://<client_id>/mcp`) + an App-ID-URI `resource` (`api://<client_id>`). This subclass
+ * rewrites all of them on every outbound authorize/token request, substituting the real app
+ * identity while the DCR id stays in use locally (getClient / redirect-uri / PKCE bookkeeping).
+ * The token Entra returns still carries `aud=api://<client_id>` and `scp="mcp"` (Entra strips
+ * the `api://<client_id>/` prefix in `scp`) — exactly what EntraVerifier checks, so the verifier
+ * and ENTRA_REQUIRED_SCOPES=mcp are unaffected.
  */
 export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
+  private readonly entraClientId: string;
+  private readonly entraClientSecret?: string;
   private readonly entraResource: URL;
   private readonly entraScopes: string[];
 
-  constructor(options: ProxyOptions, clientId: string, scopeName: string) {
+  constructor(options: ProxyOptions, clientId: string, scopeName: string, clientSecret?: string) {
     super(options);
+    this.entraClientId = clientId;
+    this.entraClientSecret = clientSecret;
     this.entraResource = new URL(`api://${clientId}`);
     this.entraScopes = [`api://${clientId}/${scopeName}`];
   }
 
+  /**
+   * Swap the local DCR client identity for the real Entra app identity on upstream calls.
+   * Guard: only attach a client_secret when one is configured — absent keeps the flow
+   * public/PKCE (loopback redirects with any port), present makes it confidential.
+   */
+  private toEntraClient(client: OAuthClientInformationFull): OAuthClientInformationFull {
+    return {
+      ...client,
+      client_id: this.entraClientId,
+      ...(this.entraClientSecret ? { client_secret: this.entraClientSecret } : {}),
+    };
+  }
+
   override authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
-    return super.authorize(client, { ...params, scopes: this.entraScopes, resource: this.entraResource }, res);
+    return super.authorize(this.toEntraClient(client), { ...params, scopes: this.entraScopes, resource: this.entraResource }, res);
   }
 
   // Narrower override signatures: the incoming `resource`/`scopes` are intentionally
@@ -41,11 +62,11 @@ export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
     codeVerifier?: string,
     redirectUri?: string,
   ): Promise<OAuthTokens> {
-    return super.exchangeAuthorizationCode(client, authorizationCode, codeVerifier, redirectUri, this.entraResource);
+    return super.exchangeAuthorizationCode(this.toEntraClient(client), authorizationCode, codeVerifier, redirectUri, this.entraResource);
   }
 
   override exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string): Promise<OAuthTokens> {
-    return super.exchangeRefreshToken(client, refreshToken, this.entraScopes, this.entraResource);
+    return super.exchangeRefreshToken(this.toEntraClient(client), refreshToken, this.entraScopes, this.entraResource);
   }
 }
 
@@ -74,7 +95,7 @@ export function buildAuth(
   // non-local call site; this guard converts a type assertion into a runtime check.
   if (!redisClient) throw new Error("redisClient is required in non-local mode");
 
-  const { ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_REQUIRED_SCOPES } = settings;
+  const { ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET, ENTRA_REQUIRED_SCOPES } = settings;
   const requiredScopes = ENTRA_REQUIRED_SCOPES.split(",");
 
   const verifier = new EntraVerifier({
@@ -99,6 +120,7 @@ export function buildAuth(
     },
     ENTRA_CLIENT_ID,
     requiredScopes[0] ?? "mcp",
+    ENTRA_CLIENT_SECRET,
   );
 
   // Override clientsStore so mcpAuthRouter sees registerClient and mounts /register.
