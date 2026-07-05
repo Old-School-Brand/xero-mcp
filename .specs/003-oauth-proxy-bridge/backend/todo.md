@@ -302,7 +302,9 @@ is integration verification, not test authoring.
     consumes the now-required field)
   - Examples: Example 12
 
-- [ ] **Task 4.2** — `buildAuth()`: delete `EntraProxyOAuthServerProvider`, instantiate `EntraBridgeProvider`
+- [x] **Task 4.2** — `buildAuth()`: delete `EntraProxyOAuthServerProvider`, instantiate `EntraBridgeProvider`
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/build.test.ts`
   - File(s): `src/http/auth/build.ts`, `src/__tests__/http/auth/build.test.ts`
   - What to do: Delete the `EntraProxyOAuthServerProvider` class and its `toEntraClient` method
     entirely (superseded — AC 6). Import `EntraBridgeProvider` from `./bridge-provider.js`,
@@ -325,7 +327,8 @@ is integration verification, not test authoring.
     file (`grep -c EntraProxyOAuthServerProvider src/http/auth/build.ts` → `0`).
   - Depends on: Task 2.6, Task 3.6, Task 4.1
 
-- [ ] **Task 4.3** — Delete the superseded `entra-proxy-provider.test.ts`
+- [x] **Task 4.3** — Delete the superseded `entra-proxy-provider.test.ts`
+  - Completed: 2026-07-05
   - File(s): `src/__tests__/http/auth/entra-proxy-provider.test.ts` (delete)
   - What to do: Remove this file. Its five test cases (identity/scope/resource rewrite,
     per-client-secret guard) test behaviour that no longer exists on `EntraBridgeProvider`
