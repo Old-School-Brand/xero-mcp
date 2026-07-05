@@ -3,8 +3,8 @@
 | Field   | Value                                  |
 |---------|----------------------------------------|
 | Owner   | Llewellyn Strydom (CTO)                |
-| Status  | Draft                                  |
-| Date    | 2026-05-23                             |
+| Status  | Active                                 |
+| Date    | 2026-07-05                             |
 | Scope   | The fork itself — not the underlying Xero MCP product |
 
 ---
@@ -29,11 +29,11 @@ A long-lived fork with a narrow, deliberately additive purpose:
 
 | Role                       | Permissions                                                                | Notes                                                       |
 |----------------------------|----------------------------------------------------------------------------|-------------------------------------------------------------|
-| Internal developer         | Run the MCP server locally, configure their own Custom Connection          | Uses the dev `claude_desktop_config.json` flow              |
+| Internal developer         | Run the MCP server locally (stdio) or reach the hosted HTTP endpoint via claude.ai; Xero auth is Refresh Token mode | Local: dev `claude_desktop_config.json`. Remote: Entra ID login |
 | Internal AI assistant      | Invoke tools via MCP                                                       | Inherits the developer's Xero scope                         |
 | Fork maintainer (Llewellyn) | All of the above; merges upstream; cuts releases; sets org-wide defaults  | One person in v0                                            |
 
-No external users. No public-facing deployment. No multi-tenant onboarding flow.
+No external users — remote access is gated by Entra ID and limited to our team. The server is reachable remotely (a hosted HTTP endpoint for claude.ai) alongside local stdio use, but is not open to the public. No multi-tenant onboarding flow.
 
 ## 4. In Scope
 
@@ -64,7 +64,7 @@ Broad strokes only — concrete decisions belong in per-feature `requirements.md
 - **New Xero API integrations** that should serve every Xero MCP user — those are upstream's responsibility. Open a PR against `XeroAPI/xero-mcp-server`, not a feature here.
 - **Bug fixes to upstream tools** — same rule: PR upstream. We may carry a short-lived patch locally if upstream is slow, but only with an open upstream PR backing it.
 - **Rewriting the handler-per-resource pattern, swapping the `xero-node` SDK, changing the MCP transport** — anything that would create hard divergence and make every upstream merge painful.
-- **A web UI, admin console, or REST API** — this is an MCP server. Stdio in, stdio out.
+- **A web UI, admin console, or REST API** — this is an MCP server, exposing MCP over stdio (local) and Streamable HTTP (remote). Nothing beyond the MCP surface.
 - **Multi-tenant SaaS hosting** — out of scope; the fork is for our own team's use.
 
 ## 6. Design Principles (Non-Negotiable)
