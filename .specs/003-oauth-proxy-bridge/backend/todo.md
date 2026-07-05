@@ -403,7 +403,8 @@ is integration verification, not test authoring.
 
 ### Phase 6: Docs & ADR
 
-- [ ] **Task 6.1** — `.env.example`: describe the required `ENTRA_CLIENT_SECRET` and `/auth/callback`
+- [x] **Task 6.1** — `.env.example`: describe the required `ENTRA_CLIENT_SECRET` and `/auth/callback`
+  - Completed: 2026-07-05
   - File(s): `.env.example`
   - What to do: Change the `ENTRA_CLIENT_SECRET` block from "Optional: ... Leave unset for the
     public/PKCE flow" to describe it as required in non-local mode (confidential upstream flow
@@ -417,7 +418,8 @@ is integration verification, not test authoring.
     registration requirement is documented next to `MCP_SERVER_URL`.
   - Depends on: Task 4.2
 
-- [ ] **Task 6.2** — `.specs/REPO.md`: update the Auth (MCP HTTP) row to describe the bridge
+- [x] **Task 6.2** — `.specs/REPO.md`: update the Auth (MCP HTTP) row to describe the bridge
+  - Completed: 2026-07-05
   - File(s): `.specs/REPO.md`
   - What to do: In the Tech Stack table's `Auth (MCP HTTP)` row, replace "SDK's
     `ProxyOAuthServerProvider` / `mcpAuthRouter` / `requireBearerAuth`... See ADR-0002" with

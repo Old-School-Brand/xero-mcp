@@ -19,7 +19,7 @@ See `.specs/PRD.md` for the fork's charter.
 | MCP          | `@modelcontextprotocol/sdk` ^1.23.4 (stdio transport + Streamable HTTP transport) |
 | Xero SDK     | `xero-node` ^13.3.0                                                        |
 | Auth (Xero)  | Refresh Token mode via axios (refresh token exchange; token store persistence — `file` default or `redis` via `XERO_TOKEN_STORE`; proactive renewal) |
-| Auth (MCP HTTP) | Entra ID OAuth via `jose` (JWT verification) + SDK's `ProxyOAuthServerProvider` / `mcpAuthRouter` / `requireBearerAuth`. Local-dev: static bearer. See ADR-0002. |
+| Auth (MCP HTTP) | Entra ID OAuth via `jose` (JWT verification) + an OAuth-proxy bridge (`EntraBridgeProvider`, a subclass of the SDK's `ProxyOAuthServerProvider`) that terminates the Entra login at the server's own fixed `{MCP_SERVER_URL}/auth/callback` so every MCP client type authenticates uniformly. Local-dev: static bearer. See ADR-0002 (transport/local-auth) and ADR-0004 (OAuth handshake model, supersedes ADR-0002 decision 2). |
 | HTTP         | `express` — app shell for the HTTP entry point (`src/http/server.ts`)      |
 | Cache/Store  | `redis` v4 (node-redis) — DCR client storage + health probes. See ADR-0003. |
 | Logging      | `pino` + `pino-http` — structured JSON logging for the HTTP entry          |
@@ -65,11 +65,14 @@ xero-mcp/
 │   │   ├── sessions.ts           # Per-session transport + McpServer lifecycle
 │   │   ├── health.ts             # /livez and /readyz endpoints
 │   │   ├── logging.ts            # Pino logger + pino-http middleware factory
-│   │   └── auth/                 # Auth provider factory + verifiers + DCR store
-│   │       ├── build.ts          # Provider factory: local vs Entra branch
+│   │   └── auth/                 # Auth provider factory + verifiers + DCR/txn/code stores
+│   │       ├── build.ts          # Provider factory: local vs Entra (OAuth-proxy bridge) branch
 │   │       ├── local-verifier.ts # Static bearer verifier (ENVIRONMENT=local)
 │   │       ├── entra-verifier.ts # Entra JWT verifier via jose
-│   │       └── redis-clients-store.ts  # OAuthRegisteredClientsStore on Redis
+│   │       ├── redis-clients-store.ts  # OAuthRegisteredClientsStore on Redis
+│   │       ├── bridge-provider.ts      # EntraBridgeProvider — OAuth-proxy bridge (ADR-0004)
+│   │       ├── redis-code-store.ts     # Redis-backed txn/server-code store for the bridge
+│   │       └── callback-handler.ts     # GET /auth/callback — exchanges the Entra code, bridges to client
 │   └── __tests__/                # Test suites
 │       ├── clients/
 │       │   └── xero-client.test.ts
