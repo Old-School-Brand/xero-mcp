@@ -22,6 +22,13 @@ import type { LocalSettings, NonLocalSettings, Settings } from "../settings.js";
  * The token Entra returns still carries `aud=api://<client_id>` and `scp="mcp"` (Entra strips
  * the `api://<client_id>/` prefix in `scp`) — exactly what EntraVerifier checks, so the verifier
  * and ENTRA_REQUIRED_SCOPES=mcp are unaffected.
+ *
+ * Per-client secret: this one Entra app serves both a **public** client (Claude Code / desktop
+ * loopback redirects `http://localhost:<port>/…` → PKCE, Entra FORBIDS a client_secret) and a
+ * **confidential** client (the claude.ai connector, redirect `https://claude.ai/…` → Entra
+ * REQUIRES the client_secret). The two are mutually exclusive, so we send `ENTRA_CLIENT_SECRET`
+ * on the token exchange ONLY for non-loopback (confidential) redirects, and never for loopback
+ * (public) ones. A DCR client's own generated secret is never forwarded regardless.
  */
 export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
   private readonly entraClientId: string;
@@ -37,23 +44,34 @@ export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
     this.entraScopes = [`api://${clientId}/${scopeName}`];
   }
 
+  /** Loopback redirects are OAuth "public client" (PKCE, no secret) per Entra's platform rules. */
+  private isLoopbackRedirect(uri?: string): boolean {
+    if (!uri) return false;
+    try {
+      const host = new URL(uri).hostname.replace(/^\[|\]$/g, "");
+      return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Swap the local DCR client identity for the real Entra app identity on upstream calls.
-   * `client_secret` is set *exclusively* from `entraClientSecret` — assigning it
-   * unconditionally (undefined clears it) ensures a DCR client's own generated secret is
-   * never forwarded to Entra. Guard: unset keeps the flow public/PKCE (loopback redirects
-   * with any port); set makes it confidential.
+   * `client_secret` is set *exclusively* from `entraClientSecret` (undefined clears it, so a
+   * DCR client's own secret is never forwarded) and only when `includeSecret` — i.e. a
+   * configured secret AND a confidential (non-loopback) flow.
    */
-  private toEntraClient(client: OAuthClientInformationFull): OAuthClientInformationFull {
+  private toEntraClient(client: OAuthClientInformationFull, includeSecret: boolean): OAuthClientInformationFull {
     return {
       ...client,
       client_id: this.entraClientId,
-      client_secret: this.entraClientSecret,
+      client_secret: includeSecret ? this.entraClientSecret : undefined,
     };
   }
 
   override authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
-    return super.authorize(this.toEntraClient(client), { ...params, scopes: this.entraScopes, resource: this.entraResource }, res);
+    // authorize sends no client_secret (redirect only carries client_id) — includeSecret is moot.
+    return super.authorize(this.toEntraClient(client, false), { ...params, scopes: this.entraScopes, resource: this.entraResource }, res);
   }
 
   // Narrower override signatures: the incoming `resource`/`scopes` are intentionally
@@ -64,11 +82,16 @@ export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
     codeVerifier?: string,
     redirectUri?: string,
   ): Promise<OAuthTokens> {
-    return super.exchangeAuthorizationCode(this.toEntraClient(client), authorizationCode, codeVerifier, redirectUri, this.entraResource);
+    const confidential = !!this.entraClientSecret && !this.isLoopbackRedirect(redirectUri);
+    return super.exchangeAuthorizationCode(this.toEntraClient(client, confidential), authorizationCode, codeVerifier, redirectUri, this.entraResource);
   }
 
   override exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string): Promise<OAuthTokens> {
-    return super.exchangeRefreshToken(this.toEntraClient(client), refreshToken, this.entraScopes, this.entraResource);
+    // No redirect on refresh — infer public/confidential from the client's registered redirects.
+    const allLoopback =
+      (client.redirect_uris?.length ?? 0) > 0 && (client.redirect_uris ?? []).every((u) => this.isLoopbackRedirect(u));
+    const confidential = !!this.entraClientSecret && !allLoopback;
+    return super.exchangeRefreshToken(this.toEntraClient(client, confidential), refreshToken, this.entraScopes, this.entraResource);
   }
 }
 
