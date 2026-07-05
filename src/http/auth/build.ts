@@ -39,14 +39,16 @@ export class EntraProxyOAuthServerProvider extends ProxyOAuthServerProvider {
 
   /**
    * Swap the local DCR client identity for the real Entra app identity on upstream calls.
-   * Guard: only attach a client_secret when one is configured — absent keeps the flow
-   * public/PKCE (loopback redirects with any port), present makes it confidential.
+   * `client_secret` is set *exclusively* from `entraClientSecret` — assigning it
+   * unconditionally (undefined clears it) ensures a DCR client's own generated secret is
+   * never forwarded to Entra. Guard: unset keeps the flow public/PKCE (loopback redirects
+   * with any port); set makes it confidential.
    */
   private toEntraClient(client: OAuthClientInformationFull): OAuthClientInformationFull {
     return {
       ...client,
       client_id: this.entraClientId,
-      ...(this.entraClientSecret ? { client_secret: this.entraClientSecret } : {}),
+      client_secret: this.entraClientSecret,
     };
   }
 

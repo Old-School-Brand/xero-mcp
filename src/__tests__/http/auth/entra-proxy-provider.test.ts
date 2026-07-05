@@ -121,4 +121,31 @@ describe("EntraProxyOAuthServerProvider — Entra identity/scope/resource rewrit
     expect(params.get("client_id")).toBe(CLIENT_ID); // still substitutes the app id
     expect(params.get("client_secret")).toBeNull(); // but sends no secret
   });
+
+  it("guard: a DCR client's own client_secret is never forwarded upstream when unconfigured", async () => {
+    // Open DCR lets a client register with a confidential auth method; the SDK then mints a
+    // server-side secret stored on the client record. It must NOT leak to Entra when the
+    // deployment is in public/PKCE mode (ENTRA_CLIENT_SECRET unset).
+    const confidentialDcrClient = {
+      client_id: "dcr-client-1",
+      client_secret: "dcr-internal-secret-should-never-reach-entra",
+      redirect_uris: ["http://localhost:9999/callback"],
+    } as OAuthClientInformationFull;
+
+    let body = "";
+    const fetchImpl = vi.fn<FetchLike>(async (_url, init) => {
+      body = String(init?.body ?? "");
+      return tokenResponse(_url, init);
+    });
+
+    const provider = new EntraProxyOAuthServerProvider(
+      { endpoints: ENDPOINTS, verifyAccessToken: async () => ({ token: "t", clientId: "c", scopes: [] }), getClient: async () => confidentialDcrClient, fetch: fetchImpl },
+      CLIENT_ID,
+      "mcp",
+      // no clientSecret → public/PKCE
+    );
+    await provider.exchangeAuthorizationCode(confidentialDcrClient, "code-123", "verifier", "http://localhost:9999/callback");
+
+    expect(new URLSearchParams(body).get("client_secret")).toBeNull();
+  });
 });
