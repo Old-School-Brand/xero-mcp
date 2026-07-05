@@ -341,7 +341,9 @@ is integration verification, not test authoring.
   - Depends on: Task 4.2
   - Examples: Example 13
 
-- [ ] **Task 4.4** — `server.ts`: mount `GET /auth/callback` in the non-local branch
+- [x] **Task 4.4** — `server.ts`: mount `GET /auth/callback` in the non-local branch
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/server-nonlocal.test.ts`
   - File(s): `src/http/server.ts`, `src/__tests__/http/server-nonlocal.test.ts`
   - What to do: In `createApp()`'s non-local branch, capture `callbackHandler` from the `buildAuth`
     return value alongside `provider`/`verifier`/`requiredScopes`. In the

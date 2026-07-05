@@ -20,7 +20,7 @@ import type { OAuthTransaction, OAuthServerCode } from "../../../http/auth/redis
 function makeRedisFake(data: Record<string, string> = {}) {
   return {
     get: vi.fn(async (key: string) => data[key] ?? null),
-    set: vi.fn(async (key: string, value: string, _options?: { EX?: number }) => {
+    set: vi.fn(async (key: string, value: string) => {
       data[key] = value;
     }),
     del: vi.fn(async (key: string) => {
