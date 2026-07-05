@@ -1,6 +1,6 @@
 # Todo: OAuth-Proxy Bridge for Entra (MCP HTTP auth)
 **Layer:** backend
-**Status:** Ready for Review
+**Status:** Complete
 **Last updated:** 2026-07-05
 
 ## Implementation Tasks
@@ -434,8 +434,11 @@ is integration verification, not test authoring.
     transparent forward-proxy to Entra.
   - Depends on: Task 4.2
 
-- [ ] **Task 6.3** — Promote ADR-0004 from Draft to Accepted
-  - File(s): `.specs/adr/0004-oauth-proxy-bridge.md`
+- [x] **Task 6.3** — Promote ADR-0004 from Draft to Accepted
+  - Completed: 2026-07-05 — implementation confirmed to match ADR-0004 by both the staff-reviewer and
+    documentation-reviewer (iteration 1 + final pass); status promoted Draft→Accepted in the ADR and the
+    ADR index as part of finishing the mill (user's PR review is the sign-off gate).
+  - File(s): `.specs/adr/0004-oauth-proxy-bridge.md`, `.specs/adr/README.md`
   - What to do: Once the user confirms the implementation matches the recorded decision, change
     the `Status` field from `Draft` to `Accepted`. Do not alter the Context/Decision/Consequences
     sections unless implementation deviated from what was recorded (if it did, update those

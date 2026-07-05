@@ -55,6 +55,8 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 | **DCR** | Dynamic Client Registration (RFC 7591), the OAuth flow by which an MCP client registers itself with our server at runtime to obtain its `client_id`. | "dynamic registration" (acceptable in prose; use DCR in code/specs) |
 | **ProxyOAuthServerProvider** | The MCP TS SDK's `OAuthServerProvider` implementation that forwards `/authorize` and `/token` to an upstream provider (here: Entra) while owning DCR and metadata endpoints locally. | none |
 | **OAuthRegisteredClientsStore** | The SDK's storage interface for DCR client records. Implementations include in-memory (SDK example) and (in this fork) Redis-backed. | "DCR store" is fine in conversational prose but use the full name in specs |
+| **OAuth-proxy bridge** | Server-side pattern where the MCP server terminates the upstream IdP (Entra) authorization-code flow at its own fixed `/auth/callback`, holding the MCP client's redirect+PKCE in short-lived server state and issuing its own code back to the client. | "OAuth passthrough", "dumb proxy" (that is the superseded behaviour) |
+| **Transaction (OAuth `txn`)** | The short-lived server-side record (keyed by `txn_id`, used as the upstream `state`) holding a client's redirect_uri, state, PKCE challenge, and scopes during a single in-flight authorization. | "session" (means the MCP session elsewhere) |
 
 ## Fork
 

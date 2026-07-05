@@ -83,6 +83,7 @@ A subset of CLAUDE.md's engineering principles that genuinely bind decisions in 
 
 - **001-oauth2-web-app-auth** (backend) — Replace Custom Connection + Bearer Token auth with a single Refresh Token mode that works with Xero Web Applications (available to all regions).
 - **002-http-transport-and-oauth** (backend, infra) — Add a Streamable HTTP entry point with Entra ID OAuth (DCR + Redis-backed clients store) alongside the existing stdio entry, and the container/compose/Helm artefacts to deploy it. All new source under `src/http/` so upstream merges stay clean.
+- **003-oauth-proxy-bridge** (backend) — Replace the dumb-forward `ProxyOAuthServerProvider` with an OAuth-proxy *bridge* that terminates the Entra login at the server's own fixed `/auth/callback`, so every MCP client type (Claude Code/local loopback, claude.ai/Desktop web) authenticates uniformly — mirroring `cin7-mcp`. Enables private dev testing in Claude Code + prod via claude.ai.
 
 ---
 
