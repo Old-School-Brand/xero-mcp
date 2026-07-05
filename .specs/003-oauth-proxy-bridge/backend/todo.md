@@ -1,6 +1,6 @@
 # Todo: OAuth-Proxy Bridge for Entra (MCP HTTP auth)
 **Layer:** backend
-**Status:** In Progress
+**Status:** Ready for Review
 **Last updated:** 2026-07-05
 
 ## Implementation Tasks
