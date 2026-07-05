@@ -20,7 +20,8 @@
  *   - test_exchangeRefreshToken_substitutes_entra_identity: substitutes ENTRA_CLIENT_ID/SECRET/scope and never forwards the DCR client's own identity
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { createHash } from "node:crypto";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Response } from "express";
 import { InvalidGrantError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
@@ -66,6 +67,10 @@ function makeProvider(codeStore: RedisOAuthCodeStore) {
 }
 
 describe("EntraBridgeProvider", () => {
+  afterEach(() => {
+    vi.restoreAllMocks(); // restore the global fetch spy between tests
+  });
+
   it("test_authorize_stores_txn_and_redirects_to_entra_with_server_pkce", async () => {
     const codeStore = makeCodeStoreMock();
     const provider = makeProvider(codeStore);
@@ -101,7 +106,11 @@ describe("EntraBridgeProvider", () => {
     expect(params.get("client_id")).toBe("entra-client-id"); // NOT the DCR id
     expect(params.get("redirect_uri")).toBe("https://example.com/auth/callback");
     expect(params.get("state")).toBe(txnId); // NOT "client-state-xyz"
-    expect(params.get("code_challenge")).toBeTruthy();
+    // The challenge sent to Entra must be the S256 hash of the stored server verifier —
+    // proves the second (server↔Entra) PKCE pair is mathematically correct and distinct
+    // from the client's challenge (AC 8), not merely present.
+    const expectedServerChallenge = createHash("sha256").update(record.serverCodeVerifier).digest("base64url");
+    expect(params.get("code_challenge")).toBe(expectedServerChallenge);
     expect(params.get("code_challenge_method")).toBe("S256");
     expect(params.get("scope")).toBe("api://entra-client-id/mcp");
     expect(params.get("response_type")).toBe("code");
@@ -183,13 +192,13 @@ describe("EntraBridgeProvider", () => {
     const provider = makeProvider(codeStore);
 
     let body = "";
-    global.fetch = vi.fn(async (_url, init) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
       body = String((init as RequestInit)?.body ?? "");
       return new Response(JSON.stringify({ access_token: "a", token_type: "Bearer" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
-    }) as typeof fetch;
+    });
 
     const dcrClientWithSecret = { ...DCR_CLIENT, client_secret: "dcr-secret" };
     await provider.exchangeRefreshToken(dcrClientWithSecret, "refresh-token-xyz");

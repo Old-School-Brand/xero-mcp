@@ -117,6 +117,14 @@ describe("createCallbackHandler", () => {
     expect(namespace).toBe("code");
     expect(record["clientCodeChallenge"]).toBe(TXN_RECORD.clientCodeChallenge);
     expect(record["clientRedirectUri"]).toBe(TXN_RECORD.clientRedirectUri);
+    // The Entra token set is the payload the bridge exists to carry — assert it is stored
+    // intact under the server code (Example 3), so exchangeAuthorizationCode returns it later.
+    expect(record["tokens"]).toEqual({
+      access_token: "entra-at-789",
+      token_type: "Bearer",
+      refresh_token: "entra-rt-012",
+      expires_in: 3600,
+    });
     expect(ttl).toBe(60);
 
     expect(res.redirect).toHaveBeenCalledOnce();

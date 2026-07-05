@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
-import { OAuthTokensSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { OAuthTokensSchema, type OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type pino from "pino";
 import type { RedisOAuthCodeStore } from "./redis-code-store.js";
 import type { EntraConfig } from "./bridge-provider.js";
@@ -53,6 +53,8 @@ export function createCallbackHandler(
       return;
     }
 
+    // A callback with no `error` and no `code` intentionally falls through here with an
+    // empty code — Entra rejects it and the upstream-failure 502 path below handles it.
     const tokenRequestBody = new URLSearchParams({
       grant_type: "authorization_code",
       code: code ?? "",
@@ -62,21 +64,16 @@ export function createCallbackHandler(
       redirect_uri: entraConfig.callbackUrl,
     });
 
-    const tokens = await (async () => {
-      try {
-        const response = await fetch(entraConfig.tokenUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: tokenRequestBody.toString(),
-        });
-        if (!response.ok) throw new Error(`Entra token endpoint returned ${response.status}`);
-        return OAuthTokensSchema.parse(await response.json());
-      } catch {
-        return undefined;
-      }
-    })();
-
-    if (!tokens) {
+    let tokens: OAuthTokens;
+    try {
+      const response = await fetch(entraConfig.tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenRequestBody.toString(),
+      });
+      if (!response.ok) throw new Error(`Entra token endpoint returned ${response.status}`);
+      tokens = OAuthTokensSchema.parse(await response.json());
+    } catch {
       logger.warn({ txnId: state }, "auth_callback_upstream_token_exchange_failed");
       res.status(502).json({ error: "upstream_error", error_description: "Upstream token exchange failed" });
       return;
