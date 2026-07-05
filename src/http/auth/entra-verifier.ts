@@ -29,7 +29,7 @@ type EntraVerifierOptions = {
 export class EntraVerifier implements OAuthTokenVerifier {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
   private readonly issuer: string;
-  private readonly audience: string;
+  private readonly audience: string[];
   private readonly requiredScopes: string[];
   private readonly _jwksUrl: string;
 
@@ -38,7 +38,8 @@ export class EntraVerifier implements OAuthTokenVerifier {
     // Store JWKS as instance field — same fetch path at startup (probe) and runtime
     this.jwks = createRemoteJWKSet(new URL(this._jwksUrl));
     this.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
-    this.audience = `api://${clientId}`;
+    // Entra v2.0 issues `aud` as the client-id GUID, not the api:// URI; accept both.
+    this.audience = [clientId, `api://${clientId}`];
     this.requiredScopes = requiredScopes;
   }
 

@@ -11,6 +11,11 @@
  *   - test_redis_unreachable_at_startup_rejects_with_message: createApp() rejects with "Redis unreachable" when redis connect() fails
  *   - test_entra_jwks_unreachable_at_startup_rejects_with_message: createApp() rejects with "Entra JWKS unreachable" when verifyAccessToken throws TypeError
  *   - test_readyz_returns_503_when_redis_ping_fails_mid_life: GET /readyz returns 503 {"status":"unavailable","reason":"redis"} when ping() rejects after startup
+ *   - test_auth_callback_route_invokes_callback_handler: GET /auth/callback is routed to the callbackHandler returned by buildAuth (Task 4.4, 003-oauth-proxy-bridge)
+ *
+ * Update (003-oauth-proxy-bridge, Task 4.4): buildAuth's non-local overload now returns a
+ * callbackHandler alongside provider/verifier/requiredScopes; the mock below is extended to
+ * match, and ENTRA_CLIENT_SECRET is stubbed since settings.ts now requires it in non-local mode.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -28,6 +33,7 @@ const {
   mockCreateSession,
   mockGetSession,
   mockVerifyAccessToken,
+  mockCallbackHandler,
 } = vi.hoisted(() => {
   const mockRedisConnect = vi.fn();
   const mockRedisPing = vi.fn();
@@ -36,6 +42,9 @@ const {
   const mockCreateSession = vi.fn();
   const mockGetSession = vi.fn();
   const mockVerifyAccessToken = vi.fn();
+  const mockCallbackHandler = vi.fn((_req: unknown, res: { redirect: (status: number, url: string) => void }) =>
+    res.redirect(302, "https://client.example/callback"),
+  );
   return {
     mockRedisConnect,
     mockRedisPing,
@@ -44,6 +53,7 @@ const {
     mockCreateSession,
     mockGetSession,
     mockVerifyAccessToken,
+    mockCallbackHandler,
   };
 });
 
@@ -103,6 +113,7 @@ vi.mock("../../http/auth/build.js", async (importOriginal) => {
       },
       verifier: { verifyAccessToken: mockVerifyAccessToken, jwksUrl: "https://login.microsoftonline.com/test-tenant/discovery/v2.0/keys" },
       requiredScopes: ["mcp"],
+      callbackHandler: mockCallbackHandler,
     }),
   };
 });
@@ -113,6 +124,7 @@ vi.mock("../../http/auth/build.js", async (importOriginal) => {
 vi.stubEnv("ENVIRONMENT", "development");
 vi.stubEnv("ENTRA_TENANT_ID", "test-tenant-id");
 vi.stubEnv("ENTRA_CLIENT_ID", "test-client-id");
+vi.stubEnv("ENTRA_CLIENT_SECRET", "test-client-secret");
 vi.stubEnv("MCP_SERVER_URL", "https://xero-mcp.example.com");
 vi.stubEnv("ENTRA_REQUIRED_SCOPES", "mcp");
 vi.stubEnv("REDIS_URL", "redis://localhost:6379");
@@ -185,5 +197,15 @@ describe("server non-local startup and runtime", () => {
     const res = await request(app).get("/readyz");
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ status: "unavailable", reason: "redis" });
+  });
+
+  // Task 4.4 — GET /auth/callback is mounted and routed to the callbackHandler from buildAuth
+  it("test_auth_callback_route_invokes_callback_handler", async () => {
+    const { app } = await createApp();
+
+    const res = await request(app).get("/auth/callback").query({ code: "entra-code", state: "txn-123" });
+
+    expect(mockCallbackHandler).toHaveBeenCalledOnce();
+    expect(res.status).not.toBe(404);
   });
 });

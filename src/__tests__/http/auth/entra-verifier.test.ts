@@ -80,6 +80,19 @@ describe("EntraVerifier", () => {
     expect(authInfo.expiresAt).toBe(9999999999);
   });
 
+  it("test_audience_accepts_client_id_guid_and_app_id_uri", async () => {
+    // Entra v2.0 issues aud as the client-id GUID, not the api:// URI — verifier must accept both.
+    mockJwtVerify.mockResolvedValue({ payload: { sub: "u", scp: "mcp", exp: 9999999999 } });
+
+    const verifier = new EntraVerifier(verifierOptions);
+    await verifier.verifyAccessToken("valid-jwt");
+
+    const opts = mockJwtVerify.mock.calls[0]![2] as { issuer: string; audience: string[] };
+    expect(opts.audience).toContain("client-456"); // bare GUID — what Entra actually issues
+    expect(opts.audience).toContain("api://client-456"); // App ID URI — accepted too
+    expect(opts.issuer).toBe("https://login.microsoftonline.com/tenant-123/v2.0");
+  });
+
   it("test_expired_token_rejects_with_invalid_token_error", async () => {
     // MockJWTExpired extends MockJOSEError (which is the mocked JOSEError)
     // so instanceof MockJOSEError is true → caught → InvalidTokenError

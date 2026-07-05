@@ -18,7 +18,9 @@ export function createHttpLogger(logger: pino.Logger) {
     serializers: {
       req: (req: IncomingMessage & { url?: string; method?: string }) => ({
         method: req.method,
-        url: req.url,
+        // Strip the query string — OAuth authorization codes, state, and PKCE
+        // parameters (e.g. GET /auth/callback?code=...&state=...) must never reach logs.
+        url: req.url?.split("?")[0],
       }),
       res: (res: { statusCode: number }) => ({
         statusCode: res.statusCode,

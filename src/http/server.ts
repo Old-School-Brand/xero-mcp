@@ -52,6 +52,7 @@ export async function createApp() {
   let resourceMetadataUrl: string | undefined;
   let provider: ProxyOAuthServerProvider | undefined;
   let serverUrl: URL | undefined;
+  let callbackHandler: express.RequestHandler | undefined;
 
   if (settings.ENVIRONMENT === "local") {
     // Local: static bearer auth only — no Redis, no Entra JWKS probe.
@@ -71,10 +72,11 @@ export async function createApp() {
       throw new Error(`Redis unreachable: ${safeRedisUrl(nonLocal.REDIS_URL)}`);
     }
 
-    const auth = buildAuth(nonLocal, redisClient);
+    const auth = buildAuth(nonLocal, redisClient, logger);
     verifier = auth.verifier;
     requiredScopes = auth.requiredScopes;
     provider = auth.provider;
+    callbackHandler = auth.callbackHandler;
     resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(serverUrl);
 
     // Warm the Entra JWKS at startup — discriminates "JWKS reachable" from "unreachable".
@@ -121,6 +123,10 @@ export async function createApp() {
         },
       }),
     );
+    // Server-internal OAuth-proxy bridge callback (ADR-0004) — not advertised in discovery.
+    if (callbackHandler) {
+      app.get("/auth/callback", callbackHandler);
+    }
   }
 
   // Fail loud rather than rely on a non-null assertion: both branches above
