@@ -176,7 +176,9 @@ is integration verification, not test authoring.
 
 ### Phase 3: `GET /auth/callback` handler (depends on Phase 1, uses `EntraBridgeProvider`'s Entra config shape)
 
-- [ ] **Task 3.1** — Callback happy path: exchange upstream code, mint server code, redirect to client
+- [x] **Task 3.1** — Callback happy path: exchange upstream code, mint server code, redirect to client
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts` (NEW — its own file, not `bridge-provider.ts`),
     `src/__tests__/http/auth/callback-handler.test.ts` (new)
   - What to do: Create a new file `src/http/auth/callback-handler.ts` exporting a factory
@@ -210,7 +212,9 @@ is integration verification, not test authoring.
   - Depends on: Task 1.1, Task 1.2
   - Examples: Example 3, Example 3b
 
-- [ ] **Task 3.2** — Callback error path: Entra `error` param returns 502, no redirect
+- [x] **Task 3.2** — Callback error path: Entra `error` param returns 502, no redirect
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts`, `src/__tests__/http/auth/callback-handler.test.ts`
   - What to do: At the top of the handler, if `req.query.error` is present, respond
     `res.status(502).json({ error: "upstream_error", error_description: req.query.error_description
@@ -221,7 +225,9 @@ is integration verification, not test authoring.
   - Depends on: Task 3.1
   - Examples: Example 7
 
-- [ ] **Task 3.3** — Callback error path: missing `state` returns 400
+- [x] **Task 3.3** — Callback error path: missing `state` returns 400
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts`, `src/__tests__/http/auth/callback-handler.test.ts`
   - What to do: After the `error` check, if `req.query.state` is missing/not a string, respond
     `res.status(400).json({ error: "invalid_request", error_description: "Missing state parameter" })`
@@ -231,7 +237,9 @@ is integration verification, not test authoring.
   - Depends on: Task 3.2
   - Examples: Example 8
 
-- [ ] **Task 3.4** — Callback error path: unknown/expired `txn_id` returns 400
+- [x] **Task 3.4** — Callback error path: unknown/expired `txn_id` returns 400
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts`, `src/__tests__/http/auth/callback-handler.test.ts`
   - What to do: After loading `codeStore.get("txn", state)`, if `undefined`,
     respond `res.status(400).json({ error: "invalid_request", error_description: "Authorization
@@ -242,7 +250,9 @@ is integration verification, not test authoring.
   - Depends on: Task 3.3
   - Examples: Example 9
 
-- [ ] **Task 3.5** — Callback error path: upstream token exchange failure returns 502, txn preserved
+- [x] **Task 3.5** — Callback error path: upstream token exchange failure returns 502, txn preserved
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts`, `src/__tests__/http/auth/callback-handler.test.ts`
   - What to do: If the Entra token POST is non-`ok` or `OAuthTokensSchema.parse()` throws, respond
     `res.status(502).json({ error: "upstream_error", error_description: "Upstream token exchange
@@ -254,7 +264,9 @@ is integration verification, not test authoring.
   - Depends on: Task 3.4
   - Examples: Example 10
 
-- [ ] **Task 3.6** — No sensitive data in callback logs or error bodies (AC 8)
+- [x] **Task 3.6** — No sensitive data in callback logs or error bodies (AC 8)
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/callback-handler.test.ts`
   - File(s): `src/http/auth/callback-handler.ts`, `src/__tests__/http/auth/callback-handler.test.ts`
   - What to do: Add a `warn`-level `pino` log call (reuse the logger passed into
     `createCallbackHandler`, or accept one as a parameter per design.md's Error Handling section)
