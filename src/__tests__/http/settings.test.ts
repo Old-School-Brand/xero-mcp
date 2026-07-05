@@ -86,6 +86,7 @@ describe("loadSettings", () => {
     vi.stubEnv("ENVIRONMENT", "development");
     vi.stubEnv("ENTRA_TENANT_ID", "tenant-123");
     vi.stubEnv("ENTRA_CLIENT_ID", "client-456");
+    vi.stubEnv("ENTRA_CLIENT_SECRET", "entra-secret-value");
     vi.stubEnv("MCP_SERVER_URL", "https://xero-mcp.example.com");
     vi.stubEnv("ENTRA_REQUIRED_SCOPES", "mcp");
     vi.stubEnv("REDIS_URL", "redis://localhost:6379");
@@ -97,6 +98,29 @@ describe("loadSettings", () => {
     if (settings.ENVIRONMENT !== "local") {
       expect(settings.ENTRA_TENANT_ID).toBe("tenant-123");
       expect(settings.ENTRA_CLIENT_ID).toBe("client-456");
+      expect(settings.ENTRA_CLIENT_SECRET).toBe("entra-secret-value");
+    }
+  });
+
+  it("test_nonlocal_missing_entra_client_secret_throws_naming_field", async () => {
+    vi.stubEnv("ENVIRONMENT", "development");
+    vi.stubEnv("ENTRA_TENANT_ID", "tenant-123");
+    vi.stubEnv("ENTRA_CLIENT_ID", "client-456");
+    vi.stubEnv("ENTRA_CLIENT_SECRET", "");
+    vi.stubEnv("MCP_SERVER_URL", "https://xero-mcp.example.com");
+    vi.stubEnv("ENTRA_REQUIRED_SCOPES", "mcp");
+    vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+
+    const { loadSettings } = await import("../../http/settings.js");
+    expect(() => loadSettings()).toThrow(ZodError);
+
+    try {
+      loadSettings();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ZodError);
+      const zodErr = err as ZodError;
+      const paths = zodErr.issues.map((i) => i.path.join("."));
+      expect(paths).toContain("ENTRA_CLIENT_SECRET");
     }
   });
 

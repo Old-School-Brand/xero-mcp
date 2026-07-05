@@ -282,7 +282,9 @@ is integration verification, not test authoring.
 
 ### Phase 4: Wire the bridge into `buildAuth()` and `settings.ts` (depends on Phase 2 + Phase 3)
 
-- [ ] **Task 4.1** — `settings.ts`: `ENTRA_CLIENT_SECRET` becomes required in non-local mode
+- [x] **Task 4.1** — `settings.ts`: `ENTRA_CLIENT_SECRET` becomes required in non-local mode
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/settings.test.ts`
   - File(s): `src/http/settings.ts`, `src/__tests__/http/settings.test.ts`
   - What to do: Add `"ENTRA_CLIENT_SECRET"` to the `nonLocalRequired` array inside `superRefine`.
     Remove the `// Optional (guard): ...` comment above `ENTRA_CLIENT_SECRET` in the Zod schema
