@@ -58,7 +58,9 @@ is integration verification, not test authoring.
 
 ### Phase 2: `EntraBridgeProvider` (new class, depends on Phase 1)
 
-- [ ] **Task 2.1** — `authorize()` stores a transaction and redirects to Entra with server PKCE
+- [x] **Task 2.1** — `authorize()` stores a transaction and redirects to Entra with server PKCE
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/bridge-provider.test.ts`
   - File(s): `src/http/auth/bridge-provider.ts` (new), `src/__tests__/http/auth/bridge-provider.test.ts` (new)
   - What to do: Create `EntraBridgeProvider extends ProxyOAuthServerProvider`. Constructor takes
     `(options: ProxyOptions, codeStore: RedisOAuthCodeStore, entraConfig: { clientId: string;
@@ -86,7 +88,9 @@ is integration verification, not test authoring.
   - Depends on: Task 1.1, Task 1.2
   - Examples: Example 1
 
-- [ ] **Task 2.2** — `authorize()` never forwards the RFC 8707 `resource` parameter
+- [x] **Task 2.2** — `authorize()` never forwards the RFC 8707 `resource` parameter
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/bridge-provider.test.ts`
   - File(s): `src/http/auth/bridge-provider.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`
   - What to do: No production change expected (Task 2.1's URL construction already omits
     `resource` since it is never read from `params`) — add the regression test to lock this in
@@ -96,7 +100,9 @@ is integration verification, not test authoring.
   - Depends on: Task 2.1
   - Examples: Example 2
 
-- [ ] **Task 2.3** — `challengeForAuthorizationCode()` returns the stored client PKCE challenge
+- [x] **Task 2.3** — `challengeForAuthorizationCode()` returns the stored client PKCE challenge
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/bridge-provider.test.ts`
   - File(s): `src/http/auth/bridge-provider.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`
   - What to do: Override `challengeForAuthorizationCode(_client, authorizationCode)`: call
     `codeStore.get("code", authorizationCode)` (inferred `OAuthServerCode | undefined`; peek only — do NOT delete; the SDK
@@ -112,7 +118,9 @@ is integration verification, not test authoring.
   - Depends on: Task 1.2
   - Examples: Example 5, Example 6
 
-- [ ] **Task 2.4** — `exchangeAuthorizationCode()` returns stored tokens and deletes the code (single-use)
+- [x] **Task 2.4** — `exchangeAuthorizationCode()` returns stored tokens and deletes the code (single-use)
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/bridge-provider.test.ts`
   - File(s): `src/http/auth/bridge-provider.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`
   - What to do: Override `exchangeAuthorizationCode(client, authorizationCode)` (drop the SDK's
     `codeVerifier`/`redirectUri`/`resource` params — they are unused, per design.md): call
@@ -128,7 +136,9 @@ is integration verification, not test authoring.
   - Depends on: Task 2.3
   - Examples: Example 4
 
-- [ ] **Task 2.5** — `exchangeRefreshToken()` substitutes the Entra identity
+- [x] **Task 2.5** — `exchangeRefreshToken()` substitutes the Entra identity
+  - Completed: 2026-07-05
+  - Tests: `src/__tests__/http/auth/bridge-provider.test.ts`
   - File(s): `src/http/auth/bridge-provider.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`
   - What to do: Override `exchangeRefreshToken(client, refreshToken)`: build an
     `entraClient = { ...client, client_id: entraConfig.clientId, client_secret:
@@ -149,7 +159,8 @@ is integration verification, not test authoring.
   - Depends on: Task 2.1
   - Examples: Example 11
 
-- [ ] **Task 2.6** — LOC checkpoint for `bridge-provider.ts` + `redis-code-store.ts`
+- [x] **Task 2.6** — LOC checkpoint for `bridge-provider.ts` + `redis-code-store.ts`
+  - Completed: 2026-07-05
   - File(s): `src/http/auth/bridge-provider.ts`, `src/http/auth/redis-code-store.ts`
   - What to do: Eyeball non-import/non-type/non-comment/non-blank lines in both files and confirm
     the combined provider-class-body + store logic is within the ~70-90 line budget design.md
