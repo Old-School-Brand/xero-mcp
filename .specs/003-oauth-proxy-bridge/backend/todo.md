@@ -361,7 +361,8 @@ is integration verification, not test authoring.
 
 ### Phase 5: Integration & Verification
 
-- [ ] **Task 5.1** — Full suite regression + LOC budget final check (AC 7)
+- [x] **Task 5.1** — Full suite regression + LOC budget final check (AC 7)
+  - Completed: 2026-07-05
   - File(s): (verification only — no new files)
   - What to do: Run `npm run build`, `npm run lint`, `npm run test` (full suite, not just
     `src/__tests__/http/auth/`). Then count total non-test/non-doc implementation lines added
@@ -380,7 +381,8 @@ is integration verification, not test authoring.
     `redis-clients-store.test.ts`); and the counted core LOC is within ~100-120 with no obvious bulk.
   - Depends on: Task 4.4
 
-- [ ] **Task 5.2** — Security property spot-check across the full flow (AC 8)
+- [x] **Task 5.2** — Security property spot-check across the full flow (AC 8)
+  - Completed: 2026-07-05
   - File(s): (verification only — cross-references existing tests from Tasks 2.1-3.6)
   - What to do: Re-read `bridge-provider.test.ts` and `callback-handler.test.ts` end-to-end and
     confirm, as a checklist against AC 8, that the test suite as a whole (not any single test)
