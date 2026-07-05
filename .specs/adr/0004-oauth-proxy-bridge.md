@@ -57,6 +57,19 @@ All other ADR-0002 decisions remain in force: Streamable HTTP transport (decisio
 - The Entra app registration must register the server's `/auth/callback` and remove the old client-specific redirects. This is a one-time operational change that must deploy simultaneously.
 - The bridge is ~100-120 LOC of substantive logic vs the dumb-forward subclass's ~35. The additional complexity is justified by the functional requirement (uniform client-type support) and is bounded by subclassing (refresh/verify/revoke/clientsStore inherited unchanged).
 
+**Consequence — the server now owns client redirect-URI validation (redirect allow-list):**
+Because the bridge sends Entra only the fixed `/auth/callback`, Entra's app-registration redirect
+allow-list no longer constrains the MCP client's own `redirect_uri` (pre-bridge, the dumb-forward proxy
+forwarded it to Entra, so Entra vetted it). Combined with open Dynamic Client Registration, an attacker
+could otherwise self-register a client whose `redirect_uri` points at a host they control and have the
+bridge deliver a victim's freshly-minted code there (a login-CSRF → token-exfiltration account takeover;
+PKCE does not defend, since the attacker owns the PKCE pair). The server therefore takes ownership of this
+check via a **redirect-URI allow-list enforced at DCR registration** (`RedisOAuthClientsStore.registerClient`,
+`ALLOWED_EXACT_REDIRECT_URIS`): loopback URIs are always allowed (they resolve to the client's own machine,
+unreachable by a remote attacker — covers Claude Code + local Docker), non-loopback URIs must exactly match
+the hardcoded allow-list (`https://claude.ai/api/mcp/auth_callback`), and anything else is rejected with
+`invalid_client_metadata`. This restores, at the correct layer, the control Entra used to perform for us.
+
 **Accepted trade-off — `challengeForAuthorizationCode` peeks the server code without consuming it:**
 The SDK's `/token` handler calls `challengeForAuthorizationCode` (to get the client PKCE challenge) *before* `exchangeAuthorizationCode` (which consumes the code). So the challenge lookup is a non-consuming *peek*; only the exchange is the atomic `GETDEL`. This means an attacker submitting an incorrect `code_verifier` learns a code exists without consuming it, and could retry with different verifiers within the 60s TTL. We accept this: the client PKCE challenge is a SHA-256 hash — brute-forcing a valid verifier within 60s is infeasible — and making the challenge-lookup consuming would require reimplementing the SDK's token handler (the two calls are separate methods by design), which is not worth the cost for a private-fork server. The atomic `GETDEL` on exchange still guarantees a code can be *redeemed* at most once even under concurrency (AC 4).
 

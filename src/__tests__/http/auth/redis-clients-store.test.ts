@@ -14,6 +14,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { InvalidClientMetadataError } from "@modelcontextprotocol/sdk/server/auth/errors.js";
 import { RedisOAuthClientsStore } from "../../../http/auth/redis-clients-store.js";
 
 function makeRedisFake(data: Record<string, string> = {}) {
@@ -93,5 +94,88 @@ describe("RedisOAuthClientsStore", () => {
       client_name: "round-trip-test",
       redirect_uris: ["http://localhost/callback"],
     });
+  });
+});
+
+// The OAuth-proxy bridge (ADR-0004) removes Entra from the client-redirect decision, so the
+// server must vet redirect_uris at DCR registration. Loopback is always allowed (resolves to the
+// client's own machine); non-loopback must exactly match the allow-list; anything else is rejected.
+describe("RedisOAuthClientsStore — redirect_uri allow-list", () => {
+  it("test_allows_loopback_localhost_dynamic_port", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    const result = await store.registerClient({
+      client_name: "claude-code",
+      redirect_uris: ["http://localhost:53821/callback"], // Claude Code picks a random port
+    });
+    expect(result.redirect_uris).toEqual(["http://localhost:53821/callback"]);
+  });
+
+  it("test_allows_loopback_127_and_ipv6", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    const r1 = await store.registerClient({ redirect_uris: ["http://127.0.0.1:8000/callback"] });
+    const r2 = await store.registerClient({ redirect_uris: ["http://[::1]:9000/callback"] });
+    expect(r1.redirect_uris).toEqual(["http://127.0.0.1:8000/callback"]);
+    expect(r2.redirect_uris).toEqual(["http://[::1]:9000/callback"]);
+  });
+
+  it("test_allows_exact_claude_ai_callback", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    const result = await store.registerClient({
+      client_name: "claude-ai",
+      redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+    });
+    expect(result.redirect_uris).toEqual(["https://claude.ai/api/mcp/auth_callback"]);
+  });
+
+  it("test_rejects_arbitrary_https_host", async () => {
+    const redis = makeRedisFake();
+    const store = new RedisOAuthClientsStore(redis);
+    await expect(
+      store.registerClient({ redirect_uris: ["https://attacker.example/cb"] }),
+    ).rejects.toBeInstanceOf(InvalidClientMetadataError);
+    expect(redis.set).not.toHaveBeenCalled(); // rejected before persisting
+  });
+
+  it("test_rejects_mixed_good_and_evil_array_as_a_whole", async () => {
+    const redis = makeRedisFake();
+    const store = new RedisOAuthClientsStore(redis);
+    await expect(
+      store.registerClient({
+        redirect_uris: ["https://claude.ai/api/mcp/auth_callback", "https://attacker.example/cb"],
+      }),
+    ).rejects.toBeInstanceOf(InvalidClientMetadataError);
+    expect(redis.set).not.toHaveBeenCalled();
+  });
+
+  it("test_rejects_non_loopback_http", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    // http:// to a non-loopback host must be rejected (only the exact allow-list or loopback pass)
+    await expect(
+      store.registerClient({ redirect_uris: ["http://evil.example/callback"] }),
+    ).rejects.toBeInstanceOf(InvalidClientMetadataError);
+  });
+
+  it("test_rejects_malformed_uri", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    await expect(
+      store.registerClient({ redirect_uris: ["not a url"] }),
+    ).rejects.toBeInstanceOf(InvalidClientMetadataError);
+  });
+
+  it("test_rejects_empty_redirect_uris", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake());
+    await expect(store.registerClient({ redirect_uris: [] })).rejects.toBeInstanceOf(
+      InvalidClientMetadataError,
+    );
+  });
+
+  it("test_accepts_custom_injected_allow_list", async () => {
+    const store = new RedisOAuthClientsStore(makeRedisFake(), ["https://my.internal/cb"]);
+    const result = await store.registerClient({ redirect_uris: ["https://my.internal/cb"] });
+    expect(result.redirect_uris).toEqual(["https://my.internal/cb"]);
+    // and the default claude.ai URI is NOT allowed when a custom list is injected
+    await expect(
+      store.registerClient({ redirect_uris: ["https://claude.ai/api/mcp/auth_callback"] }),
+    ).rejects.toBeInstanceOf(InvalidClientMetadataError);
   });
 });

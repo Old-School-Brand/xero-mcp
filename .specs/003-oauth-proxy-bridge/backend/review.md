@@ -2,10 +2,46 @@
 **Layer:** backend
 **Feature:** 003-oauth-proxy-bridge
 **Date:** 2026-07-05
-**Iteration:** iteration 2
-**Status:** PASSED_WITH_WARNINGS (all must-fix/should-fix resolved; one deferred nit remains)
+**Iteration:** post-merge adversarial security pass + fix
+**Status:** PASSED_WITH_WARNINGS (account-takeover must-fix RESOLVED; lower-severity items owner-accepted/deferred)
 
 Baseline for change scope: `git merge-base HEAD main` = `a972b9d`.
+
+## Adversarial Security Pass (super-strict, 4-lens security-reviewer fan-out)
+
+Run at the user's request after the mill completed. Four independent security-reviewer agents (OAuth/PKCE
+protocol, SSRF/injection/input, secret/token exposure, deployment/infra/DoS). All load-bearing facts were
+re-verified by the orchestrator against the code and the installed MCP SDK source before recording.
+
+- [x] **must-fix — Account takeover: token exfiltration via open DCR + no redirect allow-list** —
+      `src/http/auth/redis-clients-store.ts`, `src/http/auth/bridge-provider.ts:48`, `src/http/auth/callback-handler.ts:92-95`
+      Open, unauthenticated DCR let an attacker self-register a client with an attacker-controlled
+      `redirect_uri`; the SDK's `/authorize` only checks the redirect against the client's *own* registered
+      value, and the bridge now sends Entra only the fixed callback — so Entra's redirect allow-list no
+      longer constrained the client redirect (a **regression** vs the pre-003 dumb-forward proxy). A phished
+      victim's bridged code/tokens could be delivered to the attacker's host (PKCE does not defend — attacker
+      owns the pair). Verified exploitable end-to-end against the SDK source.
+      **Resolved:** redirect-URI allow-list enforced at DCR registration
+      (`RedisOAuthClientsStore.registerClient` + `ALLOWED_EXACT_REDIRECT_URIS`) — loopback always allowed
+      (resolves to the client's own machine), non-loopback must exactly match
+      `https://claude.ai/api/mcp/auth_callback`, else `invalid_client_metadata`. 8 new tests; full gate green
+      (120/120). See ADR-0004 Consequences.
+- [x] **should-fix — DoS amplification on `/auth/callback`** (no rate limit; txn not consumed on failed
+      exchange → replayable for the 600s TTL, driving repeated token-endpoint POSTs on the shared Entra
+      credential). **Owner-accepted deferral:** availability-only, low likelihood on a small internal tool
+      behind Tailscale Funnel; revisit if exposure grows. Not fixed in this commit.
+- [x] **should-fix — Stack-trace disclosure** (no global Express error handler; `NODE_ENV` not `production`
+      → unhandled Redis error renders an HTML 500 with a stack trace on the unauthenticated callback route).
+      **Owner-accepted deferral:** low-severity info disclosure; owner is paged on any crash. Not fixed here.
+- [ ] **defer (defense-in-depth, tracked):** bind `client_id` to txn/code records (RFC 6749 §4.1.3);
+      require `rediss://`/auth on `REDIS_URL`; `.refine()` `MCP_SERVER_URL` to https; enforce `/token`
+      `redirect_uri` match. None independently exploitable once the allow-list is in place.
+
+**Cross-repo gate (infra, not backend):** removing the old public `http://localhost/callback` /
+`127.0.0.1/callback` / `claude.ai` **client** redirects from the Entra app registration is mandatory, not
+best-effort — leaving stale *public* loopback redirects registered enables a direct-to-Entra public-PKCE
+token-minting path that bypasses this server entirely (`ENTRA_CLIENT_ID` is not secret). Treat as a hard
+release gate on the cloud-infra deploy.
 
 ## Reviewer Selection (iteration 2)
 
