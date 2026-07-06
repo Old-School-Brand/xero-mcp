@@ -2,6 +2,7 @@ import { z } from "zod";
 import { listXeroAgedReceivablesByContact } from "../../handlers/list-aged-receivables-by-contact.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { formatAgedReportFilter } from "../../helpers/format-aged-report-filter.js";
+import { formatDate } from "../../helpers/format-date.js";
 
 const ListAgedReceivablesByContact = CreateXeroTool(
   "list-aged-receivables-by-contact",
@@ -18,7 +19,7 @@ const ListAgedReceivablesByContact = CreateXeroTool(
   },
   async ({ contactId, reportDate, invoicesFromDate, invoicesToDate }) => {
     const response = await listXeroAgedReceivablesByContact(contactId, reportDate, invoicesFromDate, invoicesToDate);
-    
+
     if (response.isError) {
       return {
         content: [
@@ -41,7 +42,7 @@ const ListAgedReceivablesByContact = CreateXeroTool(
         },
         {
           type: "text" as const,
-          text: `Report Date: ${agedReceivablesReport.reportDate || "Not specified"}`
+          text: `Report Date: ${formatDate(agedReceivablesReport.reportDate) || "Not specified"}`
         },
         {
           type: "text" as const,

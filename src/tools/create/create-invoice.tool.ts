@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createXeroInvoice } from "../../handlers/create-xero-invoice.handler.js";
 import { DeepLinkType, getDeepLink } from "../../helpers/get-deeplink.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate } from "../../helpers/format-date.js";
 import { Invoice } from "xero-node";
 
 const trackingSchema = z.object({
@@ -33,7 +34,7 @@ const CreateInvoiceTool = CreateXeroTool(
   {
     contactId: z.string().describe("The ID of the contact to create the invoice for. \
       Can be obtained from the list-contacts tool."),
-      
+
     lineItems: z.array(lineItemSchema),
     type: z.enum(["ACCREC", "ACCPAY"]).describe("The type of invoice to create. \
       ACCREC is for sales invoices, Accounts Receivable, or customer invoices. \
@@ -74,7 +75,7 @@ const CreateInvoiceTool = CreateXeroTool(
             `ID: ${invoice?.invoiceID}`,
             `Contact: ${invoice?.contact?.name}`,
             `Type: ${invoice?.type}`,
-            `Date: ${invoice?.date}`,
+            `Date: ${formatDate(invoice?.date)}`,
             `Total: ${invoice?.total}`,
             `Status: ${invoice?.status}`,
             deepLink ? `Link to view: ${deepLink}` : null,

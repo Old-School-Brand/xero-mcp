@@ -21,6 +21,7 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 | **MCP Client** | A process that connects to an MCP Server and invokes its tools. Claude Desktop, the MCP Inspector, and custom agents are all clients. | host (ambiguous), consumer |
 | **Tool** | A named, schema-typed operation an MCP client can invoke. Lives under `src/tools/{create,list,update,delete,get}/` and is wired into `ToolFactory`. | function, command, action |
 | **Handler** | The implementation function for a Tool. Lives under `src/handlers/` as `{verb}-xero-{resource}.handler.ts`. Calls the Xero SDK and returns a `ToolResponse`. | callback, executor |
+| **Formatter** | A helper under `src/helpers/` that turns a Xero SDK object or field into its human-readable Tool-response string (e.g. `format-line-item.ts`, `format-date.ts`). | serializer |
 | **Tool Factory** | `src/tools/tool-factory.ts` — registers every Tool with the singleton `McpServer`. Adding a tool means wiring it here. | registry, registrar |
 | **Transport** | The wire protocol between MCP server and client. This server uses **stdio** (`StdioServerTransport`) and **Streamable HTTP** (`StreamableHTTPServerTransport`). | channel, IO layer |
 | **Streamable HTTP transport** | The MCP-spec HTTP transport (`@modelcontextprotocol/sdk` v1.x `StreamableHTTPServerTransport`) providing JSON-RPC over `POST /mcp` plus a server-to-client SSE channel on `GET /mcp`. Replaces stdio when running deployed. | "MCP over HTTP" (ambiguous with the legacy SSE-only transport) |

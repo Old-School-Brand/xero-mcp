@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroTrialBalance } from "../../handlers/list-xero-trial-balance.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListTrialBalanceTool = CreateXeroTool(
   "list-trial-balance",
@@ -32,11 +33,11 @@ const ListTrialBalanceTool = CreateXeroTool(
         },
         {
           type: "text" as const,
-          text: `Date: ${trialBalanceReport?.reportDate || "Not specified"}`,
+          text: `Date: ${formatDate(trialBalanceReport?.reportDate) || "Not specified"}`,
         },
         {
           type: "text" as const,
-          text: `Updated At: ${trialBalanceReport?.updatedDateUTC ? trialBalanceReport.updatedDateUTC.toISOString() : "Unknown"}`,
+          text: `Updated At: ${formatDateTime(trialBalanceReport?.updatedDateUTC) || "Unknown"}`,
         },
         {
           type: "text" as const,
@@ -47,4 +48,4 @@ const ListTrialBalanceTool = CreateXeroTool(
   },
 );
 
-export default ListTrialBalanceTool; 
+export default ListTrialBalanceTool;

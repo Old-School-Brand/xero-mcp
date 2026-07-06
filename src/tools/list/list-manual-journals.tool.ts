@@ -1,6 +1,7 @@
 import { ManualJournal } from "xero-node";
 import { listXeroManualJournals } from "../../handlers/list-xero-manual-journals.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 import { z } from "zod";
 
 const ListManualJournalsTool = CreateXeroTool(
@@ -8,7 +9,7 @@ const ListManualJournalsTool = CreateXeroTool(
   `List all manual journals from Xero.
 Ask the user if they want to see a specific manual journal or all manual journals before running.
 Can optionally pass in manual journal ID to retrieve a specific journal, or a date to filter journals modified after that date.
-The response presents a complete overview of all manual journals currently registered in your Xero account, with their details. 
+The response presents a complete overview of all manual journals currently registered in your Xero account, with their details.
 Ask the user if they want the next page of manual journals after running this tool if 10 manual journals are returned.
 If they want the next page, call this tool again with the next page number, modified date, and the manual journal ID if one was provided in the previous call.`,
   {
@@ -58,7 +59,7 @@ If they want the next page, call this tool again with the next page number, modi
             journal.narration
               ? `Description: ${journal.narration}`
               : "No description",
-            journal.date ? `Date: ${journal.date}` : null,
+            journal.date ? `Date: ${formatDate(journal.date)}` : null,
             journal.journalLines
               ? journal.journalLines.map((line) =>
                   [
@@ -84,7 +85,7 @@ If they want the next page, call this tool again with the next page number, modi
             `Show on Cash Basis Reports: ${journal.showOnCashBasisReports}`,
             `Has Attachments: ${journal.hasAttachments}`,
             journal.updatedDateUTC
-              ? `Last Updated: ${journal.updatedDateUTC.toLocaleDateString()}`
+              ? `Last Updated: ${formatDateTime(journal.updatedDateUTC)}`
               : "No last updated date",
           ]
             .filter(Boolean)

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollLeavePeriods } from "../../handlers/list-xero-payroll-leave-periods.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate } from "../../helpers/format-date.js";
 import { LeavePeriod } from "../../types/payroll-nz-types.js";
 
 const ListPayrollLeavePeriodsToolTool = CreateXeroTool(
@@ -36,8 +37,8 @@ const ListPayrollLeavePeriodsToolTool = CreateXeroTool(
           type: "text" as const,
           text: [
             `Period Status: ${period.periodStatus || "Unknown"}`,
-            period.periodStartDate ? `Start Date: ${period.periodStartDate}` : null,
-            period.periodEndDate ? `End Date: ${period.periodEndDate}` : null,
+            period.periodStartDate ? `Start Date: ${formatDate(period.periodStartDate)}` : null,
+            period.periodEndDate ? `End Date: ${formatDate(period.periodEndDate)}` : null,
             period.numberOfUnits ? `Number of Units: ${period.numberOfUnits}` : null,
             period.numberOfUnitsTaken ? `Payment Date: ${period.numberOfUnitsTaken}` : null,
             period.typeOfUnits ? `Payment Date: ${period.typeOfUnits}` : null,

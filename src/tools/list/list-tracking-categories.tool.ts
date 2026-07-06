@@ -38,7 +38,10 @@ const ListTrackingCategoriesTool = CreateXeroTool(
             `Tracking Category ID: ${category.trackingCategoryID}`,
             `Name: ${category.name}`,
             `Status: ${category.status}`,
-            `Found ${category.options?.length || 0} tracking options:\n${category.options?.map(formatTrackingOption)}`
+            `Found ${category.options?.length || 0} tracking options:`,
+            category.options?.length
+              ? `Tracking Options:\n${category.options.map(formatTrackingOption).join("\n\n")}`
+              : "No tracking options",
           ].filter(Boolean).join("\n")
         })) || [])
       ]

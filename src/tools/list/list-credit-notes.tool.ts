@@ -1,15 +1,16 @@
 import { z } from "zod";
 import { listXeroCreditNotes } from "../../handlers/list-xero-credit-notes.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListCreditNotesTool = CreateXeroTool(
   "list-credit-notes",
-  `List credit notes in Xero. 
+  `List credit notes in Xero.
   Ask the user if they want to see credit notes for a specific contact,
-  or to see all credit notes before running. 
-  Ask the user if they want the next page of credit notes after running this tool 
-  if 10 credit notes are returned. 
-  If they want the next page, call this tool again with the next page number 
+  or to see all credit notes before running.
+  Ask the user if they want the next page of credit notes after running this tool
+  if 10 credit notes are returned.
+  If they want the next page, call this tool again with the next page number
   and the contact if one was provided in the previous call.`,
   {
     page: z.number(),
@@ -47,7 +48,7 @@ const ListCreditNotesTool = CreateXeroTool(
             creditNote.contact
               ? `Contact: ${creditNote.contact.name} (${creditNote.contact.contactID})`
               : null,
-            creditNote.date ? `Date: ${creditNote.date}` : null,
+            creditNote.date ? `Date: ${formatDate(creditNote.date)}` : null,
             creditNote.lineAmountTypes
               ? `Line Amount Types: ${creditNote.lineAmountTypes}`
               : null,
@@ -61,7 +62,7 @@ const ListCreditNotesTool = CreateXeroTool(
               ? `Currency Rate: ${creditNote.currencyRate}`
               : null,
             creditNote.updatedDateUTC
-              ? `Last Updated: ${creditNote.updatedDateUTC}`
+              ? `Last Updated: ${formatDateTime(creditNote.updatedDateUTC)}`
               : null,
           ]
             .filter(Boolean)

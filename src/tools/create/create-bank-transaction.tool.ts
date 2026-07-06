@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { createXeroBankTransaction } from "../../handlers/create-xero-bank-transaction.handler.js";
 import { bankTransactionDeepLink } from "../../consts/deeplinks.js";
+import { formatDate } from "../../helpers/format-date.js";
 
 const lineItemSchema = z.object({
   description: z.string(),
@@ -54,7 +55,7 @@ const CreateBankTransactionTool = CreateXeroTool(
           text: [
             "Bank transaction successfully:",
             `ID: ${bankTransaction?.bankTransactionID}`,
-            `Date: ${bankTransaction?.date}`,
+            `Date: ${formatDate(bankTransaction?.date)}`,
             `Contact: ${bankTransaction?.contact?.name}`,
             `Total: ${bankTransaction?.total}`,
             `Status: ${bankTransaction?.status}`,

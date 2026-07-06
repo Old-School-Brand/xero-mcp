@@ -1,17 +1,20 @@
 import { z } from "zod";
 import { listXeroPayments } from "../../handlers/list-xero-payments.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 import { Payment } from "xero-node";
 
 function paymentFormatter(payment: Payment): string {
   return [
     `Payment ID: ${payment.paymentID || "Unknown"}`,
-    `Date: ${payment.date || "Unknown date"}`,
+    `Date: ${formatDate(payment.date) || "Unknown date"}`,
     `Amount: ${payment.amount || 0}`,
     payment.reference ? `Reference: ${payment.reference}` : null,
     payment.status ? `Status: ${payment.status}` : null,
     payment.paymentType ? `Payment Type: ${payment.paymentType}` : null,
-    payment.updatedDateUTC ? `Last Updated: ${payment.updatedDateUTC}` : null,
+    payment.updatedDateUTC
+      ? `Last Updated: ${formatDateTime(payment.updatedDateUTC)}`
+      : null,
     payment.account?.name
       ? `Account: ${payment.account.name} (${payment.account.accountID || "Unknown ID"})`
       : null,
@@ -41,7 +44,7 @@ function paymentFormatter(payment: Payment): string {
 
 const ListPaymentsTool = CreateXeroTool(
   "list-payments",
-  `List payments in Xero. 
+  `List payments in Xero.
   This tool shows all payments made against invoices, including payment date, amount, and payment method.
   You can filter payments by invoice number, invoice ID, payment ID, or invoice reference.
   Ask the user if they want to see payments for a specific invoice, contact, payment or reference before running.
