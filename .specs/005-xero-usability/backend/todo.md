@@ -148,12 +148,13 @@ task's test(s) must cover.
   - Examples: Example 11, Example 12, Example 13 (applied to payments)
   - Completed: 2026-07-18
 
-- [ ] **Task 3.6** — Verify Workstream C (`offline_access`) is already applied and green
+- [x] **Task 3.6** — Verify Workstream C (`offline_access`) is already applied and green
   - File(s): none edited — read-only verification of `src/http/auth/build.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`, `src/__tests__/http/auth/callback-handler.test.ts`, `src/__tests__/http/auth/build.test.ts`
   - What to do: Confirm (do not edit) that `build.ts` line ~77 builds the scope as `` `openid offline_access api://${ENTRA_CLIENT_ID}/${requiredScopes[0] ?? "mcp"}` ``, and that the three test files assert against `"openid offline_access api://entra-client-id/mcp"` (or `client-456` in `build.test.ts`). Run `npm run test` and confirm all auth suites pass. **Do not modify any of these four files** — they are already correct; re-editing risks breaking green tests.
   - Acceptance: `npm run test` passes with no changes to these four files; the scope string in `build.ts` and all three test fixtures already read `openid offline_access …`.
   - Depends on: (none — independent verification, can run any time)
   - Examples: Example 14, Example 15, Example 16
+  - Completed: 2026-07-18
 
 - [ ] **Task 3.7** — Full regression run
   - File(s): none (verification only)
