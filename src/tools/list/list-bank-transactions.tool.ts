@@ -11,7 +11,7 @@ const ListBankTransactionsTool = CreateXeroTool(
   Ask the user if they want to see bank transactions for a specific bank account,
   or to see all bank transactions before running.
   Ask the user if they want the next page of quotes after running this tool if
-  100 bank transactions are returned.
+  1000 bank transactions are returned.
   If they do, call this tool again with the next page number and the bank account
   if one was provided in the provided in the previous call.`,
   {

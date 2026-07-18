@@ -11,7 +11,7 @@ const ListManualJournalsTool = CreateXeroTool(
 Ask the user if they want to see a specific manual journal or all manual journals before running.
 Can optionally pass in manual journal ID to retrieve a specific journal, or a date to filter journals modified after that date.
 The response presents a complete overview of all manual journals currently registered in your Xero account, with their details.
-Ask the user if they want the next page of manual journals after running this tool if 100 manual journals are returned.
+Ask the user if they want the next page of manual journals after running this tool if 1000 manual journals are returned.
 If they want the next page, call this tool again with the next page number, modified date, and the manual journal ID if one was provided in the previous call.`,
   {
     manualJournalId: z

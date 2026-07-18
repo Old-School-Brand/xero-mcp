@@ -10,7 +10,7 @@ const ListCreditNotesTool = CreateXeroTool(
   Ask the user if they want to see credit notes for a specific contact,
   or to see all credit notes before running.
   Ask the user if they want the next page of credit notes after running this tool
-  if 100 credit notes are returned.
+  if 1000 credit notes are returned.
   If they want the next page, call this tool again with the next page number
   and the contact if one was provided in the previous call.`,
   {

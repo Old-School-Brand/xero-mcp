@@ -6,7 +6,7 @@
 export function paginationHint(
   count: number,
   page: number,
-  pageSize = 100,
+  pageSize = 1000,
 ): string | null {
   return count === pageSize
     ? `Showing ${count} — call with page ${page + 1} for more`
