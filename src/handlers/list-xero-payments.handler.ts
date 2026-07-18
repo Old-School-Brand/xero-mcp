@@ -46,7 +46,7 @@ async function getPayments(
     where,
     "UpdatedDateUTC DESC", // order
     page, // page
-    100, // pageSize
+    1000, // pageSize
     getClientHeaders(), // options
   );
 
