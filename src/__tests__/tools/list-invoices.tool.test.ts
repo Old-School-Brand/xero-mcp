@@ -29,7 +29,7 @@ beforeEach(() => {
 
 describe("list-invoices tool — paginationHint wiring", () => {
   it("appends the pagination hint when a full page (100) is returned", async () => {
-    listXeroInvoices.mockResolvedValue({ result: invoices(100), isError: false, error: null });
+    listXeroInvoices.mockResolvedValue({ result: invoices(1000), isError: false, error: null });
 
     const texts = await runPage(1);
 

@@ -11,7 +11,7 @@ const ListInvoicesTool = CreateXeroTool(
   Ask the user if they want to see invoices for a specific contact, \
   invoice number, or to see all invoices before running. \
   Ask the user if they want the next page of invoices after running this tool \
-  if 100 invoices are returned. \
+  if 1000 invoices are returned. \
   If they want the next page, call this tool again with the next page number \
   and the contact or invoice number if one was provided in the previous call.",
   {

@@ -16,8 +16,8 @@ import { paginationHint } from "../../helpers/pagination-hint.js";
 
 describe("paginationHint", () => {
   it("test_fullPage_returnsShowingMessage", () => {
-    expect(paginationHint(100, 1)).toBe(
-      "Showing 100 — call with page 2 for more",
+    expect(paginationHint(1000, 1)).toBe(
+      "Showing 1000 — call with page 2 for more",
     );
   });
 
