@@ -1,6 +1,6 @@
 # Todo: Xero Usability — GL Access, Pagination & Session Persistence
 **Layer:** backend
-**Status:** Ready for Review
+**Status:** Complete
 **Last updated:** 2026-07-18
 
 ## Implementation Tasks
