@@ -165,10 +165,11 @@ task's test(s) must cover.
 
 ### Phase 4: Cleanup & Docs
 
-- [ ] **Task 4.1** — Record the upstream-isolation exception in `.specs/REPO.md`
+- [x] **Task 4.1** — Record the upstream-isolation exception in `.specs/REPO.md`
   - File(s): `.specs/REPO.md`
   - What to do: Append a new paragraph after the existing "Known exception (feature 004-response-formatting-fixes)" note (under "Upstream Sync"), following the same pattern: name feature 005-xero-usability as a **second** deliberate deviation, listing the new GL files (`src/handlers/list-xero-account-transactions.handler.ts`, `src/tools/list/list-account-transactions.tool.ts`), the wiring edit (`src/tools/list/index.ts`), and the five pageSize handler/tool edits (invoices, manual journals, bank transactions, credit notes, payments) as touching upstream-owned `src/handlers/` and `src/tools/`. Note that the `offline_access` change (workstream C) stayed entirely within `src/http/` and required no exception. State that `git diff upstream/main -- src/ ':!src/http'` is non-empty for this additional, named reason.
   - Acceptance: `.specs/REPO.md`'s Upstream Sync section documents feature 005 as a second upstream-isolation exception, listing the exact files affected, mirroring the existing feature-004 entry's structure.
+  - Completed: 2026-07-18
   - Depends on: Task 2.8, Task 3.5
 
 ## Out of Scope
