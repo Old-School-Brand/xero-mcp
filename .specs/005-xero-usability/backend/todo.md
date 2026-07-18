@@ -90,19 +90,21 @@ task's test(s) must cover.
   - Completed: 2026-07-18
   - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.7** — New tool: `list-account-transactions.tool.ts`
+- [x] **Task 2.7** — New tool: `list-account-transactions.tool.ts`
   - File(s): `src/tools/list/list-account-transactions.tool.ts` (new)
   - What to do: Use `CreateXeroTool` with a zod schema of `{ account: z.string(), fromDate: z.string().optional(), toDate: z.string().optional(), offset: z.number().optional() }`. The description must disclose the completeness caveat verbatim from design.md A2 (fast-path-via-`ifModifiedSince` vs complete-path-via-omitted-`fromDate`, and that `showing: 0` with a non-null `nextOffset` means "keep going", not "done"). On success, return a single `content` block: `{ type: "text", text: JSON.stringify(envelope) }` — minified, no pretty-print (a deliberately different JSON shape from the existing report-tool convention; do not reuse their multi-block pattern). On error, return `{ type: "text", text: \`Error listing account transactions: ${response.error}\` }`. This is a thin wrapper — no filtering/paging logic belongs here, only schema + response shaping delegating to `listXeroAccountTransactions` from Task 2.6.
   - Acceptance: Calling the tool with a mocked handler response produces exactly one text content block containing the minified JSON envelope on success, or the error-prefixed string on failure.
   - Depends on: Task 2.6
   - Examples: integration point for Examples 1–10, 6b (no dedicated wrapper-only Example — the envelope shape is verified end-to-end through the handler tests)
+  - Completed: 2026-07-18
 
-- [ ] **Task 2.8** — Wire into `src/tools/list/index.ts`
+- [x] **Task 2.8** — Wire into `src/tools/list/index.ts`
   - File(s): `src/tools/list/index.ts`
   - What to do: Add `import ListAccountTransactionsTool from "./list-account-transactions.tool.js";` and add `ListAccountTransactionsTool` to the exported `ListTools` array (`ToolFactory` iterates this array automatically — no change needed to `tool-factory.ts` itself, per design.md).
   - Acceptance: Given `ToolFactory` runs with `XERO_READONLY` unset, When the registered tool names are collected (same pattern as `src/__tests__/tools/tool-factory.test.ts`), Then `"list-account-transactions"` is present in the list.
   - Depends on: Task 2.7
   - Examples: Example 17
+  - Completed: 2026-07-18
 
 ### Phase 3: Integration & Verification
 
