@@ -3,6 +3,7 @@ import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { listXeroBankTransactions } from "../../handlers/list-xero-bank-transactions.handler.js";
 import { formatLineItem } from "../../helpers/format-line-item.js";
 import { formatDate } from "../../helpers/format-date.js";
+import { paginationHint } from "../../helpers/pagination-hint.js";
 
 const ListBankTransactionsTool = CreateXeroTool(
   "list-bank-transactions",
@@ -10,7 +11,7 @@ const ListBankTransactionsTool = CreateXeroTool(
   Ask the user if they want to see bank transactions for a specific bank account,
   or to see all bank transactions before running.
   Ask the user if they want the next page of quotes after running this tool if
-  10 bank transactions are returned.
+  100 bank transactions are returned.
   If they do, call this tool again with the next page number and the bank account
   if one was provided in the provided in the previous call.`,
   {
@@ -31,6 +32,7 @@ const ListBankTransactionsTool = CreateXeroTool(
     }
 
     const bankTransactions = response.result;
+    const hint = paginationHint(bankTransactions?.length ?? 0, page);
 
     return {
       content: [
@@ -62,7 +64,8 @@ const ListBankTransactionsTool = CreateXeroTool(
               ? `Line Items:\n${transaction.lineItems.map(formatLineItem).join("\n\n")}`
               : "Line Items: No line items",
           ].filter(Boolean).join("\n")
-        })) || [])
+        })) || []),
+        ...(hint ? [{ type: "text" as const, text: hint }] : [])
       ]
     };
   }

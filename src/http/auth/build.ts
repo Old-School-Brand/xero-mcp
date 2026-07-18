@@ -74,7 +74,7 @@ export function buildAuth(
     clientId: ENTRA_CLIENT_ID,
     clientSecret: ENTRA_CLIENT_SECRET,
     callbackUrl: `${MCP_SERVER_URL}/auth/callback`,
-    scope: `api://${ENTRA_CLIENT_ID}/${requiredScopes[0] ?? "mcp"}`,
+    scope: `openid offline_access api://${ENTRA_CLIENT_ID}/${requiredScopes[0] ?? "mcp"}`,
     tokenUrl: `https://login.microsoftonline.com/${ENTRA_TENANT_ID}/oauth2/v2.0/token`,
   };
 

@@ -121,6 +121,7 @@ accounting.invoices.read             # invoices, credit notes, quotes
 accounting.payments.read             # payments
 accounting.banktransactions.read     # bank transactions
 accounting.manualjournals.read       # manual journals
+accounting.journals.read             # general ledger (list-account-transactions)
 
 accounting.reports.profitandloss.read
 accounting.reports.balancesheet.read
@@ -173,6 +174,7 @@ The server runs **read-only by default** — only the read tools below are regis
 - `list-invoices`: Retrieve a list of invoices
 - `list-items`: Retrieve a list of items
 - `list-manual-journals`: Retrieve a list of manual journals
+- `list-account-transactions`: Retrieve general-ledger lines for one account (Xero Journals feed, paginated by offset)
 - `list-organisation-details`: Retrieve details about an organisation
 - `list-profit-and-loss`: Retrieve a profit and loss report
 - `list-quotes`: Retrieve a list of quotes

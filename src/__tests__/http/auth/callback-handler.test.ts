@@ -32,7 +32,7 @@ const ENTRA_CONFIG: CallbackEntraConfig = {
   clientId: "entra-client-id",
   clientSecret: "entra-client-secret",
   callbackUrl: "https://example.com/auth/callback",
-  scope: "api://entra-client-id/mcp",
+  scope: "openid offline_access api://entra-client-id/mcp",
   tokenUrl: "https://login.microsoftonline.com/tenant-abc/oauth2/v2.0/token",
 };
 

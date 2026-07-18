@@ -33,6 +33,8 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 | Term | Definition | Aliases to avoid |
 |---|---|---|
 | **Xero** | The accounting/payroll SaaS this server integrates with via `xero-node`. | Xero Accounting (qualify only when distinguishing from Xero Payroll) |
+| **General Ledger (GL)** | The complete record of an organisation's financial transactions per account; in Xero, sourced via the Journals endpoint (there is no GL report in the Accounting API). | "ledger listing", "account statement" |
+| **Journals endpoint** | Xero's `accountingApi.getJournals(tenantId, ifModifiedSince?, offset?, paymentsOnly?)`; the canonical bulk-GL feed, 100 journals per call, cursor-paginated by `offset` (returns journals with `JournalNumber > offset`), narrowable by modification date via `ifModifiedSince`. Distinct from **Manual Journals** (`getManualJournals`). | "journal list" (ambiguous with manual journals) |
 | **Custom Connection** | A Xero OAuth 2.0 client-credentials grant scoped to a single Xero organisation. Authenticated with `XERO_CLIENT_ID` + `XERO_CLIENT_SECRET`. Only available in UK, US, and NZ. Removed from this fork by ADR 0001. | client credentials connection |
 | **Bearer Token** | A pre-issued OAuth access token passed via `XERO_CLIENT_BEARER_TOKEN`. Used when an external flow (e.g. PKCE) has already obtained a token. Removed from this fork by ADR 0001. | access token (ambiguous), API key |
 | **Web Application** | A Xero OAuth 2.0 app type (available to all regions) that uses the `authorization_code` grant. Produces a refresh token that can be exchanged for access tokens. The only app type available to operators outside UK/US/NZ. | "web app" (acceptable in prose, but use full term in code and spec) |
@@ -44,6 +46,7 @@ The single source of canonical domain vocabulary for this repo. Refinery, foundr
 | **Scope** | A permission string a Xero token carries (e.g. `accounting.invoices`, `payroll.timesheets`). Scopes are configured on the Xero Web Application, not by this server. | permission, role |
 | **Tenant** | A Xero organisation. `XeroClient.tenants[]` carries the list; `tenantId` selects which to call. A Web Application connection has one tenant per authorised org. | org (use "tenant" in code; "organisation" in prose is fine) |
 | **Demo Company** | Xero's sandbox tenant with pre-loaded sample data, switchable from the top-left Xero dropdown. The recommended target for any test mutation. | test org, sandbox |
+| **list-account-transactions** | The Tool exposing GL-per-account over the Journals endpoint; returns compact JSON with offset-based continuation. | "list-journals" (ambiguous with manual journals), "list-gl" |
 
 ## Auth (MCP HTTP mode)
 

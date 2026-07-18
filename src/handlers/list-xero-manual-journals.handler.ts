@@ -27,7 +27,7 @@ async function getManualJournals(
     undefined,
     "UpdatedDateUTC DESC",
     page,
-    10, // pageSize
+    100, // pageSize
     getClientHeaders(),
   );
 

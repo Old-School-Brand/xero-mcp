@@ -45,6 +45,11 @@ Discovered 2026-07-05 while exercising the deployed `Xero MCP` server for featur
   origin overwhelmed by concurrent requests; (3) ingress/Cloudflare response-size or time limits.
 - `express.json()` in `src/http/server.ts:106` sets no explicit limit (default 100 KB) — inbound only, so
   not the cause of outbound 502s, but worth setting explicitly while here.
+- **Observed evidence (2026-07-18):** during the feature-004 dev rollout, the outgoing dev pod
+  (`xero-mcp/backend:sha-d8f94f4`, namespace `xero-mcp-dev`) had **4 restarts** while the freshly-rolled
+  pod (`sha-b70b992`) sat at 0. Restart *count* only — the restart *reason* was not confirmed
+  (`kubectl describe pod` / events not checked for `OOMKilled`). Consistent with the large-response →
+  OOMKill → 502 hypothesis; run the diagnostics below against the current pod to confirm before scoping.
 
 ### Diagnostics to run when this feature starts (owner can provide `kubectl` access)
 - `kubectl get pods -l app=xero-mcp` — restart counts.

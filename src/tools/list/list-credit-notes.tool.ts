@@ -2,6 +2,7 @@ import { z } from "zod";
 import { listXeroCreditNotes } from "../../handlers/list-xero-credit-notes.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { paginationHint } from "../../helpers/pagination-hint.js";
 
 const ListCreditNotesTool = CreateXeroTool(
   "list-credit-notes",
@@ -9,7 +10,7 @@ const ListCreditNotesTool = CreateXeroTool(
   Ask the user if they want to see credit notes for a specific contact,
   or to see all credit notes before running.
   Ask the user if they want the next page of credit notes after running this tool
-  if 10 credit notes are returned.
+  if 100 credit notes are returned.
   If they want the next page, call this tool again with the next page number
   and the contact if one was provided in the previous call.`,
   {
@@ -30,6 +31,7 @@ const ListCreditNotesTool = CreateXeroTool(
     }
 
     const creditNotes = response.result;
+    const hint = paginationHint(creditNotes?.length ?? 0, page);
 
     return {
       content: [
@@ -68,6 +70,7 @@ const ListCreditNotesTool = CreateXeroTool(
             .filter(Boolean)
             .join("\n"),
         })) || []),
+        ...(hint ? [{ type: "text" as const, text: hint }] : []),
       ],
     };
   },
