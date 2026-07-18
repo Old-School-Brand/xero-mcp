@@ -20,6 +20,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Response } from "express";
+import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type { AuthorizationParams } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 import type { LocalSettings, NonLocalSettings } from "../../../http/settings.js";
 
 vi.mock("../../../http/auth/local-verifier.js", () => {
@@ -152,5 +155,30 @@ describe("buildAuth", () => {
     } else {
       throw new Error("Expected provider in result");
     }
+  });
+
+  it("test_nonlocal_authorize_requests_openid_offline_access_scope", async () => {
+    const mockRedisClient = {
+      get: vi.fn(),
+      set: vi.fn(),
+      del: vi.fn(),
+      getDel: vi.fn(),
+    } as unknown as import("redis").RedisClientType;
+
+    const result = buildAuth(nonLocalSettings, mockRedisClient, mockLogger);
+    if (!("provider" in result)) throw new Error("Expected provider in result");
+
+    let redirectedUrl = "";
+    const res = { redirect: (url: string) => (redirectedUrl = url) } as unknown as Response;
+
+    await result.provider.authorize(
+      { client_id: "dcr-abc", redirect_uris: ["http://localhost:9999/callback"] } as unknown as OAuthClientInformationFull,
+      { redirectUri: "http://localhost:9999/callback", codeChallenge: "chal", state: "s", scopes: ["mcp"] } as unknown as AuthorizationParams,
+      res,
+    );
+
+    // offline_access is what makes Entra issue a refresh token (openid for OIDC). A revert of the
+    // build.ts scope one-liner must fail here.
+    expect(new URL(redirectedUrl).searchParams.get("scope")).toBe("openid offline_access api://client-456/mcp");
   });
 });

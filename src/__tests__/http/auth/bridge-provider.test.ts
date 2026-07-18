@@ -32,7 +32,7 @@ const ENTRA_CONFIG = {
   clientId: "entra-client-id",
   clientSecret: "entra-client-secret",
   callbackUrl: "https://example.com/auth/callback",
-  scope: "api://entra-client-id/mcp",
+  scope: "openid offline_access api://entra-client-id/mcp",
 };
 
 const ENDPOINTS = {
@@ -112,7 +112,7 @@ describe("EntraBridgeProvider", () => {
     const expectedServerChallenge = createHash("sha256").update(record.serverCodeVerifier).digest("base64url");
     expect(params.get("code_challenge")).toBe(expectedServerChallenge);
     expect(params.get("code_challenge_method")).toBe("S256");
-    expect(params.get("scope")).toBe("api://entra-client-id/mcp");
+    expect(params.get("scope")).toBe("openid offline_access api://entra-client-id/mcp");
     expect(params.get("response_type")).toBe("code");
   });
 
@@ -206,7 +206,7 @@ describe("EntraBridgeProvider", () => {
     const params = new URLSearchParams(body);
     expect(params.get("client_id")).toBe("entra-client-id");
     expect(params.get("client_secret")).toBe("entra-client-secret");
-    expect(params.get("scope")).toBe("api://entra-client-id/mcp");
+    expect(params.get("scope")).toBe("openid offline_access api://entra-client-id/mcp");
     expect(params.get("resource")).toBeNull();
     expect(body).not.toContain("dcr-abc");
     expect(body).not.toContain("dcr-secret");
