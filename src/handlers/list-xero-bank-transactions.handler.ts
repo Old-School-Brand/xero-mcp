@@ -16,7 +16,7 @@ async function getBankTransactions(
       "Date DESC", // order
       page, // page
       undefined, // unitdp
-      100, // pagesize
+      1000, // pagesize
       getClientHeaders()
   );
 

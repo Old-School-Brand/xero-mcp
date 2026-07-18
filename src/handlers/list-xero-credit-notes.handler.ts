@@ -17,7 +17,7 @@ async function getCreditNotes(
     "UpdatedDateUTC DESC", // order
     page, // page
     undefined, // unitdp
-    100, // pageSize
+    1000, // pageSize
     getClientHeaders(),
   );
 

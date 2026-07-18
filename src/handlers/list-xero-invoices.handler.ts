@@ -25,7 +25,7 @@ async function getInvoices(
     false, // createdByMyApp
     undefined, // unitdp
     false, // summaryOnly
-    100, // pageSize
+    1000, // pageSize
     undefined, // searchTerm
     getClientHeaders(),
   );
