@@ -28,6 +28,9 @@
  *   - test_matchingLine_assembledIntoExactRowShape: row fields match Example 10's fixture exactly (Task 2.5)
  *   - test_emptyPeriodScanExhausted_returnsNullNextOffset: partial page, no matches → nextOffset null (Task 2.6)
  *   - test_sparseAccountBudgetExhausted_showingZeroWithNonNullNextOffset: full pages, no matches, budget exhausted → nextOffset non-null (Task 2.6)
+ *   - test_fromDateOmitted_stillReturnsMatchingLines: fromDate omitted still returns matching lines (guards the !fromDate prefix) (review iter-2)
+ *   - test_dateInput_normalisedToIsoDateString: Date-typed journalDate normalised to YYYY-MM-DD (review iter-2)
+ *   - test_accountUUID_matchesByAccountID: uppercase-UUID input matches lowercase Xero AccountID (case-normalisation guard) (review iter-2)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -48,10 +51,16 @@ vi.mock("../../clients/xero-client.js", () => ({
 
 import { listXeroAccountTransactions } from "../../handlers/list-xero-account-transactions.handler.js";
 
+// xero-node deserialises Xero's /Date(...)/ wire format into a real JS Date at runtime,
+// even though the SDK types journalDate as `string`. wireDate reproduces that runtime
+// reality in fixtures (a Date value in a string-typed field) so tests exercise formatDate's
+// Date branch — the path that actually runs in production.
+const wireDate = (iso: string): string => new Date(iso) as unknown as string;
+
 function journal(overrides: Partial<Journal> = {}): Journal {
   return {
     journalID: "journal-id",
-    journalDate: "2026-06-15",
+    journalDate: wireDate("2026-06-15T00:00:00.000Z"),
     journalNumber: 1,
     sourceType: Journal.SourceTypeEnum.ACCREC,
     journalLines: [],
@@ -103,20 +112,22 @@ describe("listXeroAccountTransactions", () => {
   });
 
   it("test_accountUUID_matchesByAccountID", async () => {
-    const uuid = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890";
+    // Caller passes an uppercase UUID; Xero returns AccountID as a lowercase GUID.
+    // The handler must normalise both sides — regression guard for the case-sensitivity fix.
+    const uuidInput = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890";
     getJournals.mockResolvedValueOnce({
       body: {
         journals: [
           journal({
             journalLines: [
-              { accountCode: "631", accountID: uuid, accountName: "Advertising" },
+              { accountCode: "631", accountID: uuidInput.toLowerCase(), accountName: "Advertising" },
             ],
           }),
         ],
       },
     });
 
-    const response = await listXeroAccountTransactions(uuid, "2026-06-01");
+    const response = await listXeroAccountTransactions(uuidInput, "2026-06-01");
 
     expect(response.isError).toBe(false);
     expect(response.result?.rows).toHaveLength(1);
@@ -149,6 +160,42 @@ describe("listXeroAccountTransactions", () => {
       false,
       expect.anything(),
     );
+  });
+
+  it("test_fromDateOmitted_stillReturnsMatchingLines", async () => {
+    // Guards the `!fromDate` prefix in isWithinRange: without it, `journalDay >= undefined`
+    // is false and every journal would be silently excluded.
+    getJournals.mockResolvedValueOnce({
+      body: {
+        journals: [journal({ journalLines: [{ accountCode: "631" }] })],
+      },
+    });
+
+    const response = await listXeroAccountTransactions("631");
+
+    expect(response.isError).toBe(false);
+    expect(response.result?.showing).toBe(1);
+    expect(response.result?.rows[0]?.accountCode).toBe("631");
+  });
+
+  it("test_dateInput_normalisedToIsoDateString", async () => {
+    // journalDate arrives as a JS Date (production wire format); formatDate must
+    // normalise it to a YYYY-MM-DD string for both the range filter and row.date.
+    getJournals.mockResolvedValueOnce({
+      body: {
+        journals: [
+          journal({
+            journalDate: wireDate("2026-06-15T09:30:00.000Z"),
+            journalLines: [{ accountCode: "631" }],
+          }),
+        ],
+      },
+    });
+
+    const response = await listXeroAccountTransactions("631", "2026-06-01", "2026-06-30");
+
+    expect(response.result?.rows).toHaveLength(1);
+    expect(response.result?.rows[0]?.date).toBe("2026-06-15");
   });
 
   it("test_fullPagesUntilBudget_returnsNonNullNextOffset", async () => {

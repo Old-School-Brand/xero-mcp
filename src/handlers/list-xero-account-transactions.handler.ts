@@ -101,8 +101,11 @@ function collectRows(
     if (!isWithinRange(journalDay, fromDate, toDate)) continue;
 
     for (const line of journal.journalLines ?? []) {
+      // UUID detection is case-insensitive (regex `i` flag) but Xero returns
+      // AccountID as a lowercase GUID — normalise both sides so an uppercase
+      // input doesn't silently match nothing.
       const matches = isUUID
-        ? line.accountID === account
+        ? line.accountID?.toLowerCase() === account.toLowerCase()
         : line.accountCode === account;
       if (!matches) continue;
 

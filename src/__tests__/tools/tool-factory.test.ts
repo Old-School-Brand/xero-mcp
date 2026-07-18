@@ -27,6 +27,7 @@ describe("ToolFactory read-only gating", () => {
     const names = registeredToolNames();
 
     expect(names).toContain("list-invoices");
+    expect(names).toContain("list-account-transactions"); // Example 17 — new GL tool registered
     expect(names).toContain("get-timesheet");
     expect(names).not.toContain("create-invoice");
     expect(names).not.toContain("update-contact");
