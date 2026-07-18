@@ -1,5 +1,4 @@
 import ListAccountsTool from "./list-accounts.tool.js";
-import ListAccountTransactionsTool from "./list-account-transactions.tool.js";
 import ListAgedPayablesByContact from "./list-aged-payables-by-contact.tool.js";
 import ListAgedReceivablesByContact
   from "./list-aged-receivables-by-contact.tool.js";
@@ -32,7 +31,6 @@ import ListContactGroupsTool from "./list-contact-groups.tool.js";
 
 export const ListTools = [
   ListAccountsTool,
-  ListAccountTransactionsTool,
   ListContactsTool,
   ListCreditNotesTool,
   ListInvoicesTool,

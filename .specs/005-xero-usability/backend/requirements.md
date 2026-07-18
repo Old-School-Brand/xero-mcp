@@ -1,8 +1,15 @@
 # Requirements: Xero MCP Usability — GL Access, Pagination & Session Persistence
 
 **Layer:** backend
-**Status:** Confirmed
+**Status:** Confirmed — **workstream A (GL tool) REVERTED post-merge; B + C shipped**
 **Last updated:** 2026-07-18
+
+> **Post-merge update (2026-07-18).** Workstreams **B (pageSize 10→100)** and **C (offline_access)**
+> shipped and were verified live on dev. Workstream **A — the `list-account-transactions` GL tool —
+> was reverted**: Xero gates the Journals endpoint behind the Advanced developer-app plan
+> (~AUD $1,445/mo) + security assessment + use-case approval, which the app does not have (Starter
+> plan), so it returned 403 in production. The A-related sections below are retained as the record of
+> what was built and why it was pulled. See `.specs/PRD.md` §5 (Out of Scope).
 
 ## Problem Statement
 

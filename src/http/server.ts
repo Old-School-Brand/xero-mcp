@@ -103,6 +103,8 @@ export async function createApp() {
   });
 
   const app = express();
+  // Behind the ingress: trust one proxy hop so req.ip / rate-limiting read X-Forwarded-For correctly.
+  app.set("trust proxy", 1);
   app.use(express.json());
   app.use(httpLogger);
   app.use(createHealthRouter({ isXeroReady: () => xeroReady, redisClient }));
