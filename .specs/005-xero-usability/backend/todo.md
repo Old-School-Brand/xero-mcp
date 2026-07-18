@@ -156,10 +156,11 @@ task's test(s) must cover.
   - Examples: Example 14, Example 15, Example 16
   - Completed: 2026-07-18
 
-- [ ] **Task 3.7** — Full regression run
+- [x] **Task 3.7** — Full regression run
   - File(s): none (verification only)
   - What to do: Run `npm run build && npm run lint && npm run test`. Confirm zero regressions: the pre-existing 141 tests plus the new GL handler tests (Tasks 1.2, 2.1–2.6) and the new `pagination-hint` tests (Task 1.1) are all green. Confirm `"list-account-transactions"` appears in the `ToolFactory`-registered tool list (cross-check of Task 2.8 / Example 17 at the full-suite level).
   - Acceptance: `npm run build`, `npm run lint`, and `npm run test` all exit zero. No test file outside this feature's scope changed or regressed.
+  - Completed: 2026-07-18
   - Depends on: Task 2.8, Task 3.1, Task 3.2, Task 3.3, Task 3.4, Task 3.5, Task 3.6
 
 ### Phase 4: Cleanup & Docs
