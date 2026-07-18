@@ -79,5 +79,14 @@ Note (not a finding): backlog-file cleanup + OOM-evidence commit are pipeline co
 ### Findings
 No findings. `git diff main...HEAD -- package.json package-lock.json` empty; new files import only pre-existing deps (`xero-node`, `zod`, existing local helpers). No new packages, no undeclared imports.
 
+## Post-review hardening (owner-requested, after a first-principles "did we overcomplicate?" review)
+
+A follow-up staff + maintainability review questioned the whole approach (not the code). Consensus: workstreams B and C are model fork changes; workstream A's code is clean but is an interim GL tool superseded by feature 006. The one genuine liability identified — a reconciliation tool that can *silently* under-report — was hardened without deferring A:
+
+- [x] GL envelope now carries `complete: boolean` + `warning: string|null` — `complete:false` (with an explanatory warning) whenever `fromDate` narrowing may omit journals. Incompleteness is now visible in the *response*, not just the tool description. (handler + tool description + specs updated; `test_completeFlag_reflectsFromDateNarrowing` added)
+- [x] Added a pagination-hint integration test (`src/__tests__/tools/list-invoices.tool.test.ts`) guarding the five-tool `paginationHint` wiring from a silent upstream-merge regression (staff should-fix).
+
+Test gate after hardening: build exit 0, 160/160 tests, lint exit 0.
+
 ## Summary
 Two review iterations. Iteration 1: four of six reviewers clean (maintainability, duplication, security, performance); staff and test-quality raised low-risk should-fix items (a UUID case-sensitivity footgun and two test-coverage gaps + a nit). Iteration 2 (final pass): staff and test-quality re-reviewed and confirmed all resolved; dependency clean; documentation surfaced two README-staleness should-fix items and a design nit, all resolved before commit. No must-fix at any point. Independent test gate green throughout (build exit 0, 157/157 tests, lint exit 0). Feature is ready for commit.

@@ -4,7 +4,7 @@ import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 
 const ListAccountTransactionsTool = CreateXeroTool(
   "list-account-transactions",
-  `Lists general-ledger lines for one account. Supply \`fromDate\` for a fast month-end pull — but note \`fromDate\` narrows by *modification* date, so journals posted before \`fromDate\` with a \`JournalDate\` in range (future-dated/back-dated entries, bulk imports) are not returned. For a complete, exhaustive extract, omit \`fromDate\` (slower — scans the ledger by offset). Use \`offset\` from the previous call's \`nextOffset\` to continue; \`showing: 0\` with a non-null \`nextOffset\` means keep going (the account was inactive in that slice, not that you are done).`,
+  `Lists general-ledger lines for one account. Supply \`fromDate\` for a fast month-end pull — but note \`fromDate\` narrows by *modification* date, so journals posted before \`fromDate\` with a \`JournalDate\` in range (future-dated/back-dated entries, bulk imports) are not returned. For a complete, exhaustive extract, omit \`fromDate\` (slower — scans the ledger by offset). Use \`offset\` from the previous call's \`nextOffset\` to continue; \`showing: 0\` with a non-null \`nextOffset\` means keep going (the account was inactive in that slice, not that you are done). The response envelope carries \`complete\` (false when \`fromDate\` narrowing may omit journals) and a \`warning\` string in that case — treat the figures as potentially incomplete for reconciliation unless \`complete\` is true.`,
   {
     account: z.string().describe('Xero account code (e.g. "631") or AccountID UUID'),
     fromDate: z

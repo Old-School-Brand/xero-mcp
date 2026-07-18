@@ -337,8 +337,24 @@ describe("listXeroAccountTransactions", () => {
       account: "999",
       showing: 0,
       nextOffset: null,
+      complete: false,
+      warning: expect.any(String),
       rows: [],
     });
+  });
+
+  it("test_completeFlag_reflectsFromDateNarrowing", async () => {
+    getJournals.mockResolvedValue({ body: { journals: [] } });
+
+    // fromDate provided -> ifModifiedSince narrowing -> may under-report -> complete:false + warning
+    const narrowed = await listXeroAccountTransactions("631", "2026-06-01");
+    expect(narrowed.result?.complete).toBe(false);
+    expect(narrowed.result?.warning).toEqual(expect.any(String));
+
+    // fromDate omitted -> exhaustive scan -> complete:true, no warning
+    const exhaustive = await listXeroAccountTransactions("631");
+    expect(exhaustive.result?.complete).toBe(true);
+    expect(exhaustive.result?.warning).toBeNull();
   });
 
   it("test_sparseAccountBudgetExhausted_showingZeroWithNonNullNextOffset", async () => {

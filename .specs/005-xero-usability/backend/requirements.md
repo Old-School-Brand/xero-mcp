@@ -76,8 +76,10 @@ feature fixes all three facets in the backend layer.
    `JournalNumber` scanned) so the caller resumes; otherwise `nextOffset` is null.
 
 5. **Compact JSON output.** The tool returns a single JSON text block:
-   `{ "account": <input>, "showing": <lineCount>, "nextOffset": <number|null>, "rows": [ ... ] }`,
-   where each row is a flat journal-line object: `date`, `journalNumber`, `accountCode`,
+   `{ "account": <input>, "showing": <lineCount>, "nextOffset": <number|null>, "complete": <bool>, "warning": <string|null>, "rows": [ ... ] }`,
+   where `complete` is `false` (with an explanatory `warning`) whenever `fromDate` narrowing may
+   omit journals posted before `fromDate`, so incompleteness is visible in the response, not just the
+   tool description. Each row is a flat journal-line object: `date`, `journalNumber`, `accountCode`,
    `accountName`, `description`, `netAmount`, `grossAmount`, `taxAmount`, `taxType`, `sourceType`.
    Minified (not pretty-printed). Dates rendered via `src/helpers/format-date.ts`.
 
@@ -106,8 +108,9 @@ feature fixes all three facets in the backend layer.
 - **AC 1 — GL month-end happy path**
   - Given: account `631` exists and has journal lines dated in June 2026
   - When: `list-account-transactions({ account: "631", fromDate: "2026-06-01", toDate: "2026-06-30" })`
-  - Then: response is `{ account:"631", showing:N>0, nextOffset:<num|null>, rows:[…] }`, every row
-    is on account `631` with `date` within June 2026, minified JSON, `isError:false`
+  - Then: response is `{ account:"631", showing:N>0, nextOffset:<num|null>, complete:false, warning:<string>, rows:[…] }`
+    (complete:false + warning because `fromDate` was supplied), every row is on account `631` with
+    `date` within June 2026, minified JSON, `isError:false`
 
 - **AC 2 — Account by UUID**
   - Given: the same account's Xero `AccountID` UUID

@@ -71,7 +71,7 @@ No database, schema, or model changes. The Journals endpoint is read-only; no st
 Single `content` block, `type: "text"`, containing a minified JSON envelope:
 
 ```json
-{"account":"631","showing":42,"nextOffset":98765,"rows":[{"date":"2026-06-01","journalNumber":12345,"accountCode":"631","accountName":"Advertising","description":"Facebook Ads June","netAmount":500,"grossAmount":575,"taxAmount":75,"taxType":"OUTPUT2","sourceType":"ACCREC"},{"date":"2026-06-15","journalNumber":12400,"accountCode":"631","accountName":"Advertising","description":"Google Ads","netAmount":300,"grossAmount":345,"taxAmount":45,"taxType":"OUTPUT2","sourceType":"ACCPAY"}]}
+{"account":"631","showing":42,"nextOffset":98765,"complete":false,"warning":"Narrowed by modification date (fromDate); results may be incomplete.","rows":[{"date":"2026-06-01","journalNumber":12345,"accountCode":"631","accountName":"Advertising","description":"Facebook Ads June","netAmount":500,"grossAmount":575,"taxAmount":75,"taxType":"OUTPUT2","sourceType":"ACCREC"},{"date":"2026-06-15","journalNumber":12400,"accountCode":"631","accountName":"Advertising","description":"Google Ads","netAmount":300,"grossAmount":345,"taxAmount":45,"taxType":"OUTPUT2","sourceType":"ACCPAY"}]}
 ```
 
 `isError: false` in all non-error cases, including empty results (`showing: 0, rows: [], nextOffset: null`).
@@ -140,6 +140,8 @@ No new ADR introduced. The `offline_access` addition is a single-feature fix, no
      account: string;
      showing: number;
      nextOffset: number | null;
+     complete: boolean;      // false when fromDate narrowing may omit journals
+     warning: string | null; // explanation when !complete
      rows: AccountTransactionRow[];
    }
    ```

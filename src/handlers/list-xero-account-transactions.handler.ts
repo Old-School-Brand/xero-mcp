@@ -29,8 +29,18 @@ export interface AccountTransactionsEnvelope {
   account: string;
   showing: number;
   nextOffset: number | null;
+  // `complete` is false whenever `fromDate` narrowing was applied: `ifModifiedSince`
+  // filters by modification date, so journals posted before `fromDate` with an in-range
+  // JournalDate are silently omitted. Surfaced in the response (not just the tool
+  // description) so a reconciliation consumer cannot miss it.
+  complete: boolean;
+  warning: string | null;
   rows: AccountTransactionRow[];
 }
+
+const INCOMPLETE_WARNING =
+  "Narrowed by modification date (fromDate): journals posted before fromDate with an " +
+  "in-range JournalDate are not included. Omit fromDate for a complete (slower) scan.";
 
 /**
  * Pages the Journals endpoint from `offset`, up to `MAX_PAGES_PER_CALL` calls.
@@ -148,9 +158,17 @@ export async function listXeroAccountTransactions(
       offset ?? 0,
     );
     const rows = collectRows(journals, account, isUUID, fromDate, toDate);
+    const complete = fromDate === undefined;
 
     return {
-      result: { account, showing: rows.length, nextOffset, rows },
+      result: {
+        account,
+        showing: rows.length,
+        nextOffset,
+        complete,
+        warning: complete ? null : INCOMPLETE_WARNING,
+        rows,
+      },
       isError: false,
       error: null,
     };
