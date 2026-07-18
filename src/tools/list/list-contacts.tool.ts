@@ -1,5 +1,6 @@
 import { listXeroContacts } from "../../handlers/list-xero-contacts.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDateTime } from "../../helpers/format-date.js";
 import { z } from "zod";
 
 const ListContactsTool = CreateXeroTool(
@@ -62,7 +63,7 @@ const ListContactsTool = CreateXeroTool(
               ? `Default Currency: ${contact.defaultCurrency}`
               : null,
             contact.updatedDateUTC
-              ? `Last Updated: ${contact.updatedDateUTC}`
+              ? `Last Updated: ${formatDateTime(contact.updatedDateUTC)}`
               : null,
             `Status: ${contact.contactStatus || "Unknown"}`,
             contact.contactGroups?.length

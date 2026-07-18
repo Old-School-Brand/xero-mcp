@@ -4,6 +4,7 @@ import {
   listXeroPayrollTimesheets,
 } from "../../handlers/list-xero-timesheets.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListPayrollTimesheetsTool = CreateXeroTool(
   "list-timesheets",
@@ -37,10 +38,10 @@ This retrieves comprehensive timesheet details including timesheet IDs, employee
           text: [
             `Timesheet ID: ${timesheet.timesheetID}`,
             `Employee ID: ${timesheet.employeeID}`,
-            `Start Date: ${timesheet.startDate}`,
-            `End Date: ${timesheet.endDate}`,
+            `Start Date: ${formatDate(timesheet.startDate)}`,
+            `End Date: ${formatDate(timesheet.endDate)}`,
             `Total Hours: ${timesheet.totalHours}`,
-            `Last Updated: ${timesheet.updatedDateUTC}`,
+            `Last Updated: ${formatDateTime(timesheet.updatedDateUTC)}`,
           ]
             .filter(Boolean)
             .join("\n"),

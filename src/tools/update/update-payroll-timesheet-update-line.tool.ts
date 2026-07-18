@@ -7,6 +7,7 @@ import {
   updateXeroPayrollTimesheetUpdateLine,
 } from "../../handlers/update-xero-payroll-timesheet-update-line.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate } from "../../helpers/format-date.js";
 
 const UpdatePayrollTimesheetLineTool = CreateXeroTool(
   "update-timesheet-line",
@@ -41,7 +42,7 @@ const UpdatePayrollTimesheetLineTool = CreateXeroTool(
       content: [
         {
           type: "text" as const,
-          text: `Successfully updated timesheet line with date: ${updatedLine?.date}`,
+          text: `Successfully updated timesheet line with date: ${formatDate(updatedLine?.date)}`,
         },
       ],
     };

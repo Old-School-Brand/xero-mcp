@@ -2,6 +2,7 @@ import { z } from "zod";
 import { listXeroInvoices } from "../../handlers/list-xero-invoices.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { formatLineItem } from "../../helpers/format-line-item.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListInvoicesTool = CreateXeroTool(
   "list-invoices",
@@ -53,8 +54,8 @@ const ListInvoicesTool = CreateXeroTool(
             invoice.contact
               ? `Contact: ${invoice.contact.name} (${invoice.contact.contactID})`
               : null,
-            invoice.date ? `Date: ${invoice.date}` : null,
-            invoice.dueDate ? `Due Date: ${invoice.dueDate}` : null,
+            invoice.date ? `Date: ${formatDate(invoice.date)}` : null,
+            invoice.dueDate ? `Due Date: ${formatDate(invoice.dueDate)}` : null,
             invoice.lineAmountTypes
               ? `Line Amount Types: ${invoice.lineAmountTypes}`
               : null,
@@ -69,10 +70,10 @@ const ListInvoicesTool = CreateXeroTool(
               ? `Currency Rate: ${invoice.currencyRate}`
               : null,
             invoice.updatedDateUTC
-              ? `Last Updated: ${invoice.updatedDateUTC}`
+              ? `Last Updated: ${formatDateTime(invoice.updatedDateUTC)}`
               : null,
             invoice.fullyPaidOnDate
-              ? `Fully Paid On: ${invoice.fullyPaidOnDate}`
+              ? `Fully Paid On: ${formatDate(invoice.fullyPaidOnDate)}`
               : null,
             invoice.amountDue ? `Amount Due: ${invoice.amountDue}` : null,
             invoice.amountPaid ? `Amount Paid: ${invoice.amountPaid}` : null,
@@ -82,7 +83,9 @@ const ListInvoicesTool = CreateXeroTool(
             invoice.hasErrors ? "Has Errors: Yes" : null,
             invoice.isDiscounted ? "Is Discounted: Yes" : null,
             returnLineItems
-              ? `Line Items: ${invoice.lineItems?.map(formatLineItem)}`
+              ? invoice.lineItems?.length
+                ? `Line Items:\n${invoice.lineItems.map(formatLineItem).join("\n\n")}`
+                : "Line Items: No line items"
               : null,
           ]
             .filter(Boolean)

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroItems } from "../../handlers/list-xero-items.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDateTime } from "../../helpers/format-date.js";
 
 const ListItemsTool = CreateXeroTool(
   "list-items",
@@ -45,7 +46,7 @@ const ListItemsTool = CreateXeroTool(
             item.isTrackedAsInventory !== undefined ? `Tracked as Inventory: ${item.isTrackedAsInventory ? 'Yes' : 'No'}` : null,
             item.isSold !== undefined ? `Is Sold: ${item.isSold ? 'Yes' : 'No'}` : null,
             item.isPurchased !== undefined ? `Is Purchased: ${item.isPurchased ? 'Yes' : 'No'}` : null,
-            item.updatedDateUTC ? `Last Updated: ${item.updatedDateUTC}` : null,
+            item.updatedDateUTC ? `Last Updated: ${formatDateTime(item.updatedDateUTC)}` : null,
             item.validationErrors?.length ? `Validation Errors: ${item.validationErrors.map(e => e.message).join(", ")}` : null,
           ]
             .filter(Boolean)
@@ -56,4 +57,4 @@ const ListItemsTool = CreateXeroTool(
   },
 );
 
-export default ListItemsTool; 
+export default ListItemsTool;

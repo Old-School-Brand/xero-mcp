@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollEmployeeLeaveTypes } from "../../handlers/list-xero-payroll-employee-leave-types.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate } from "../../helpers/format-date.js";
 import { EmployeeLeaveType } from "../../types/payroll-nz-types.js";
 
 const ListPayrollEmployeeLeaveTypesTool = CreateXeroTool(
@@ -53,7 +54,7 @@ const ListPayrollEmployeeLeaveTypesTool = CreateXeroTool(
               ? `Rate Accrued Hourly: ${leaveType.rateAccruedHourly}`
               : null,
             leaveType.scheduleOfAccrualDate
-              ? `Accrual Date: ${leaveType.scheduleOfAccrualDate}`
+              ? `Accrual Date: ${formatDate(leaveType.scheduleOfAccrualDate)}`
               : null,
           ]
             .filter(Boolean)

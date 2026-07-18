@@ -30,7 +30,7 @@ See `.specs/PRD.md` for the fork's charter.
 | Type check   | `tsc` (part of `npm run build`)                                            |
 | Package mgr  | `npm` (lockfile: `package-lock.json`)                                      |
 | Testing      | Vitest 4.x (`vitest run`)                                                  |
-| CI/CD        | None yet — `infra` / `ci-cd` layers are where this work will land          |
+| CI/CD        | GitHub Actions (`.github/workflows/`): PR gate, build-publish on `main` (image + Helm chart → Azure Container Registry), tag-triggered release, plus Claude review bots. See [CI/CD & Release](#cicd--release). |
 
 ---
 
@@ -78,7 +78,7 @@ xero-mcp/
 │       │   └── xero-client.test.ts
 │       └── http/                 # Tests for the HTTP entry (mirrors src/http/ structure)
 │
-├── dist/                         # Compiled output (committed because the package's bin points at it)
+├── dist/                         # Compiled output — NOT committed (.gitignored); built by `tsc`, produced fresh in the Docker image / on npm publish
 ├── examples/                     # Example client configs and usage snippets
 │
 ├── package.json                  # Deps + npm scripts; "type": "module"; bin: stdio + HTTP entries
@@ -112,10 +112,10 @@ xero-mcp/
 | Layer    | Purpose                                                                                            |
 |----------|----------------------------------------------------------------------------------------------------|
 | backend  | TypeScript MCP server source (`src/`) — handlers, tools, `ToolFactory` registration, `XeroClient` wrapping, helpers, types |
-| ci-cd    | GitHub Actions, release/publish workflows, image scans, version bumps (no files yet — folder is reserved) |
+| ci-cd    | GitHub Actions in `.github/workflows/`: PR gate, build-publish on `main`, tag-triggered release, reusable test/lint jobs, and Claude review bots. Chart-version helper in `scripts/update-chart-versions.sh`. See [CI/CD & Release](#cicd--release). |
 | infra    | Dockerfile, Docker Compose stack (`compose.yml` + `compose.override.yml`), Helm chart (`charts/xero-mcp/`), and the conditional Redis token store (`XERO_TOKEN_STORE`) in `xero-client.ts` |
 
-> Most of the existing codebase lives in the `backend` layer. `ci-cd` and `infra` are reserved homes for the org-specific improvements named in `.specs/PRD.md`.
+> Most of the existing codebase lives in the `backend` layer. `ci-cd` and `infra` hold the org-specific deployment and pipeline improvements named in `.specs/PRD.md`.
 
 ---
 
@@ -125,7 +125,7 @@ xero-mcp/
 |-------------------|---------------------------------------------------------------------------------|
 | Package config    | `package.json`                                                                  |
 | Lockfile          | `package-lock.json`                                                             |
-| Compiled output   | `dist/` (committed; `package.json` "bin" points at `dist/index.js`)             |
+| Compiled output   | `dist/` — **not committed** (`.gitignored`); built by `tsc` (`npm run build`), produced fresh in the Docker image and on npm publish. `package.json` "bin" points at `dist/index.js`. |
 | Node version      | 18+ (Node 22 LTS recommended)                                                   |
 | Module type       | ESM (`"type": "module"`)                                                        |
 | Env file          | `.env` (gitignored) — copy from `.env.example`                                  |
@@ -266,9 +266,38 @@ For Xero-side verification, use a Xero Demo Company (top-left dropdown in Xero w
 
 ---
 
+## CI/CD & Release
+
+GitHub Actions live in `.github/workflows/`. The pipeline **publishes artifacts to Azure Container Registry (ACR)** — it does **not** deploy to a running cluster; the rollout to the tailnet instances happens outside this repo (GitOps / manual `helm upgrade` against the OCI chart). Confirm that mechanism with whoever owns the cluster.
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `pr-gate.yml` | PR opened/synchronized | Reusable `test-backend`, `test-docker-compose`, `lint-helm`, plus a Trivy CRITICAL/HIGH scan (fails the PR). This is the automated gate on every PR. |
+| `build-publish.yml` | push to `main` | Re-runs the gate, builds `xero-mcp/backend:sha-<shortsha>`, Trivy-scans (report-only), pushes the image + a dev-versioned Helm chart (`0.0.0-<ts>.sha.<sha>`) to ACR. |
+| `release.yml` | push tag `vX.Y.Z` | **Verifies the `sha-<sha>` image already exists in ACR** (so tag *after* the main build), retags it to the SemVer, pushes the SemVer Helm chart, and cuts a GitHub Release. |
+| `claude.yml`, `claude-code-review.yml` | PR / mention | Claude review bots. |
+
+Helper: `scripts/update-chart-versions.sh <chart_version> <image_tag>` stamps the chart/image versions before packaging.
+
+### Testing a change end-to-end (given the Xero refresh-token constraint)
+
+Xero **rotates the refresh token on every exchange**, so a local instance and the deployed instance cannot both run off the same Xero app connection — whichever refreshes last invalidates the other's token. Practical consequences:
+
+1. **Unit tests need no token** — `npm run test` deterministically covers pure logic (formatters, helpers). Run these first; the PR gate runs them too.
+2. **For live/end-to-end checks, use the deployed instance**, which holds its own rotated token (Redis-backed). Do not point a local build at the production Xero connection.
+3. **Local live testing** is only safe against a *separate* Xero app/connection (its own client id/secret + refresh token, e.g. a Demo Company), so it can't clash with the deployed token.
+
+**Release/test flow used in practice:**
+
+1. Merge the PR to `main` → `build-publish` puts a `sha-<sha>` image + dev chart in ACR.
+2. Roll the **dev instance** to that chart (via the external deploy mechanism), then exercise the change in Claude Code against the dev instance's HTTP/Entra endpoint (own token → no clash).
+3. Once confirmed, push a `vX.Y.Z` tag → `release` promotes the same image to the SemVer and cuts a release; roll the **prod instance** to the SemVer. Claude Desktop / claude.ai prod users then talk to the updated prod endpoint (the tag promotes the image; it does not itself push anything to clients).
+
+---
+
 ## Upstream Sync
 
-The upstream repository is [`XeroAPI/xero-mcp-server`](https://github.com/XeroAPI/xero-mcp-server). The fork tracks `main` upstream. Sync workflow (to be formalised under the `ci-cd` layer when it lands):
+The upstream repository is [`XeroAPI/xero-mcp-server`](https://github.com/XeroAPI/xero-mcp-server). The fork tracks `main` upstream. Sync workflow:
 
 1. Add upstream remote once: `git remote add upstream https://github.com/XeroAPI/xero-mcp-server.git`.
 2. Periodically: `git fetch upstream && git merge upstream/main`.
@@ -279,6 +308,8 @@ The upstream repository is [`XeroAPI/xero-mcp-server`](https://github.com/XeroAP
 Per `.specs/PRD.md`: changes that *should* live upstream (new Xero API integrations, fixes to existing tools, etc.) belong as PRs to `XeroAPI/xero-mcp-server`, not in this fork. The fork is for things that are genuinely org-specific.
 
 > **Upstream-isolation convention.** OSB-specific additions live under `src/http/` (and any future `src/{feature}/` subdirectories). Never modify upstream-owned files in `src/` (e.g. `index.ts`, `clients/`, `handlers/`, `tools/`, `server/`, `helpers/`, `types/`, `consts/`). Verify with: `git diff upstream/main -- src/ ':!src/http'` — should show zero changes. `package.json` and `.env.example` receive additive-only edits. See ADR-0002 for rationale.
+>
+> **Known exception (feature 004-response-formatting-fixes).** Response-rendering bug fixes were applied *locally* to upstream-owned formatters (`src/helpers/format-line-item.ts`, the new `src/helpers/format-date.ts`, deleted `src/helpers/get-external-link.ts`, and ~30 `src/tools/**` files) — an owner-approved deviation accepting the merge cost, because the fixes were needed before upstream could land them. As a result, `git diff upstream/main -- src/ ':!src/http'` is **no longer empty**, and these files may conflict on the next upstream merge (resolve in favour of keeping the fixes until upstream carries equivalents). All *other* features must still honour the zero-change invariant.
 
 ---
 
@@ -286,7 +317,7 @@ Per `.specs/PRD.md`: changes that *should* live upstream (new Xero API integrati
 
 ### TypeScript
 
-- All sources live under `src/`. Compiled output goes to `dist/` and is committed (the npm package's `bin` field points at `dist/index.js`).
+- All sources live under `src/`. Compiled output goes to `dist/`, which is **`.gitignored` (not committed)** — it is built by `tsc` (`npm run build`) and produced fresh in the Docker image and on npm publish. The npm package's `bin` field points at `dist/index.js`.
 - Module system is ESM throughout. Relative imports include the `.js` extension (Node16 module resolution requirement) — e.g. `import { XeroMcpServer } from "./server/xero-mcp-server.js";` even though the source file is `.ts`.
 - `tsconfig.json` enables `strict: true`, `esModuleInterop: true`, `forceConsistentCasingInFileNames: true`. Honour these — don't disable strict mode.
 - One handler per Xero API operation under `src/handlers/`. Naming: `{verb}-xero-{resource}[.payroll].handler.ts`. Match this pattern when adding handlers.

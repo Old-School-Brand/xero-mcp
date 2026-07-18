@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollEmployeeLeave } from "../../handlers/list-xero-payroll-employee-leave.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 import { EmployeeLeave } from "../../types/payroll-nz-types.js";
 
 const ListPayrollEmployeeLeaveTool = CreateXeroTool(
@@ -36,10 +37,10 @@ const ListPayrollEmployeeLeaveTool = CreateXeroTool(
             `Leave ID: ${leaveItem.leaveID || "Unknown"}`,
             `Leave Type: ${leaveItem.leaveTypeID || "Unknown"}`,
             `Description: ${leaveItem.description || "No description"}`,
-            leaveItem.startDate ? `Start Date: ${leaveItem.startDate}` : null,
-            leaveItem.endDate ? `End Date: ${leaveItem.endDate}` : null,
+            leaveItem.startDate ? `Start Date: ${formatDate(leaveItem.startDate)}` : null,
+            leaveItem.endDate ? `End Date: ${formatDate(leaveItem.endDate)}` : null,
             leaveItem.periods ? `Periods: ${leaveItem.periods.length || 0}` : null,
-            leaveItem.updatedDateUTC ? `Last Updated: ${leaveItem.updatedDateUTC}` : null,
+            leaveItem.updatedDateUTC ? `Last Updated: ${formatDateTime(leaveItem.updatedDateUTC)}` : null,
           ]
             .filter(Boolean)
             .join("\n"),

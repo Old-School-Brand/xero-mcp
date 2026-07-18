@@ -1,5 +1,6 @@
 import { listXeroPayrollLeaveTypes } from "../../handlers/list-xero-payroll-leave-types.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDateTime } from "../../helpers/format-date.js";
 import { LeaveType } from "../../types/payroll-nz-types.js";
 
 const ListPayrollLeaveTypesTool = CreateXeroTool(
@@ -36,7 +37,7 @@ const ListPayrollLeaveTypesTool = CreateXeroTool(
             leaveType.isActive !== undefined ? `Is Active: ${leaveType.isActive ? 'Yes' : 'No'}` : null,
             leaveType.typeOfUnits ? `Type Of Units: ${leaveType.typeOfUnits}` : null,
             leaveType.typeOfUnitsToAccrue ? `Type Of Units To Accrue: ${leaveType.typeOfUnitsToAccrue}` : null,
-            leaveType.updatedDateUTC ? `Last Updated: ${leaveType.updatedDateUTC}` : null,
+            leaveType.updatedDateUTC ? `Last Updated: ${formatDateTime(leaveType.updatedDateUTC)}` : null,
           ]
             .filter(Boolean)
             .join("\n"),

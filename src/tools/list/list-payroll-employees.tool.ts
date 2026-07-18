@@ -1,6 +1,7 @@
 import { Employee } from "../../types/payroll-nz-types.js";
 import { listXeroPayrollEmployees } from "../../handlers/list-xero-payroll-employees.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListPayrollEmployeesTool = CreateXeroTool(
   "list-payroll-employees",
@@ -37,7 +38,7 @@ The response presents a complete overview of all staff currently registered in y
             employee.email ? `Email: ${employee.email}` : "No email",
             employee.gender ? `Gender: ${employee.gender}` : null,
             employee.phoneNumber ? `Phone: ${employee.phoneNumber}` : null,
-            employee.startDate ? `Start Date: ${employee.startDate}` : null,
+            employee.startDate ? `Start Date: ${formatDate(employee.startDate)}` : null,
             employee.engagementType
               ? `Engagement Type: ${employee.engagementType}`
               : "No status", // Permanent, FixedTerm, Casual
@@ -45,7 +46,7 @@ The response presents a complete overview of all staff currently registered in y
             employee.firstName ? `First Name: ${employee.firstName}` : null,
             employee.lastName ? `Last Name: ${employee.lastName}` : null,
             employee.updatedDateUTC
-              ? `Last Updated: ${employee.updatedDateUTC}`
+              ? `Last Updated: ${formatDateTime(employee.updatedDateUTC)}`
               : null,
           ]
             .filter(Boolean)

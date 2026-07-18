@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroProfitAndLoss } from "../../handlers/list-xero-profit-and-loss.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListProfitAndLossTool = CreateXeroTool(
   "list-profit-and-loss",
@@ -44,11 +45,11 @@ const ListProfitAndLossTool = CreateXeroTool(
        },
        {
          type: "text" as const,
-         text: `Date Range: ${profitAndLossReport?.reportDate ?? "Not specified"}`,
+         text: `Date Range: ${formatDate(profitAndLossReport?.reportDate) ?? "Not specified"}`,
         },
         {
           type: "text" as const,
-          text: `Updated At: ${profitAndLossReport?.updatedDateUTC ? profitAndLossReport.updatedDateUTC.toISOString() : "Unknown"}`,
+          text: `Updated At: ${formatDateTime(profitAndLossReport?.updatedDateUTC) ?? "Unknown"}`,
         },
         {
           type: "text" as const,
@@ -59,4 +60,4 @@ const ListProfitAndLossTool = CreateXeroTool(
   },
 );
 
-export default ListProfitAndLossTool; 
+export default ListProfitAndLossTool;

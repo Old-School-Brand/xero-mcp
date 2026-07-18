@@ -3,6 +3,7 @@ import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { createXeroManualJournal } from "../../handlers/create-xero-manual-journal.handler.js";
 import { DeepLinkType, getDeepLink } from "../../helpers/get-deeplink.js";
 import { ensureError } from "../../helpers/ensure-error.js";
+import { formatDate } from "../../helpers/format-date.js";
 import { LineAmountTypes, ManualJournal } from "xero-node";
 
 const CreateManualJournalTool = CreateXeroTool(
@@ -100,7 +101,7 @@ const CreateManualJournalTool = CreateXeroTool(
             type: "text" as const,
             text: [
               `Manual journal created: ${manualJournal.narration} (ID: ${manualJournal.manualJournalID})`,
-              manualJournal.date ? `Date: ${manualJournal.date}` : null,
+              manualJournal.date ? `Date: ${formatDate(manualJournal.date)}` : null,
               manualJournal.status
                 ? `Status: ${manualJournal.status}`
                 : "No status",

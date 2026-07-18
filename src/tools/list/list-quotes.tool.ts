@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { listXeroQuotes } from "../../handlers/list-xero-quotes.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { formatDate, formatDateTime } from "../../helpers/format-date.js";
 
 const ListQuotesTool = CreateXeroTool(
   "list-quotes",
-  `List all quotes in Xero. 
-  Ask the user if they want to see quotes for a specific contact before running. 
-  Ask the user if they want the next page of quotes after running this tool if 10 quotes are returned. 
+  `List all quotes in Xero.
+  Ask the user if they want to see quotes for a specific contact before running.
+  Ask the user if they want the next page of quotes after running this tool if 10 quotes are returned.
   If they do, call this tool again with the page number and the contact provided in the previous call.`,
   {
     page: z.number(),
@@ -44,9 +45,9 @@ const ListQuotesTool = CreateXeroTool(
             quote.contact
               ? `Contact: ${quote.contact.name} (${quote.contact.contactID})`
               : null,
-            quote.dateString ? `Quote Date: ${quote.dateString}` : null,
+            quote.dateString ? `Quote Date: ${formatDate(quote.dateString)}` : null,
             quote.expiryDateString
-              ? `Expiry Date: ${quote.expiryDateString}`
+              ? `Expiry Date: ${formatDate(quote.expiryDateString)}`
               : null,
             quote.title ? `Title: ${quote.title}` : null,
             quote.summary ? `Summary: ${quote.summary}` : null,
@@ -63,7 +64,7 @@ const ListQuotesTool = CreateXeroTool(
             quote.currencyCode ? `Currency: ${quote.currencyCode}` : null,
             quote.currencyRate ? `Currency Rate: ${quote.currencyRate}` : null,
             quote.updatedDateUTC
-              ? `Last Updated: ${quote.updatedDateUTC}`
+              ? `Last Updated: ${formatDateTime(quote.updatedDateUTC)}`
               : null,
           ]
             .filter(Boolean)
