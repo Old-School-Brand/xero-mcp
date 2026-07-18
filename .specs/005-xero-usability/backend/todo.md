@@ -25,56 +25,70 @@ task's test(s) must cover.
   - Completed: 2026-07-18
   - Tests: `src/__tests__/helpers/pagination-hint.test.ts`
 
-- [ ] **Task 1.2** — GL handler scaffolding: types, constant, error shell
+- [x] **Task 1.2** — GL handler scaffolding: types, constant, error shell
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts` (new), `src/__tests__/handlers/list-xero-account-transactions.test.ts` (new)
   - What to do: Create the handler file with: (a) the `AccountTransactionRow` and `AccountTransactionsEnvelope` interfaces from design.md A1.8 (defined locally in this file — not a shared type, per YAGNI); (b) a `MAX_PAGES_PER_CALL` named numeric constant at the top of the file, set to `10` (design.md's Open Question target; do not gold-plate a config knob for it — it's a single literal); (c) an exported `async function listXeroAccountTransactions(account: string, fromDate?: string, toDate?: string, offset?: number): Promise<XeroClientResponse<AccountTransactionsEnvelope>>` whose body is `await xeroClient.authenticate()` wrapped in try/catch, with the catch block returning `{ result: null, isError: true, error: formatError(error) }` identically to every other handler. The try body may `throw new Error("not implemented")` as a placeholder — Tasks 2.1–2.6 replace it incrementally. Mock `xeroClient.accountingApi.getJournals` to reject with a 403-shaped error object for this task's test.
   - Acceptance: Given `getJournals` throws a 403-shaped error, When `listXeroAccountTransactions("631", "2026-06-01")` is called, Then the response is `{ result: null, isError: true, error: "You don't have permission to access this resource in Xero." }`.
   - Depends on: (none)
   - Examples: Example 7
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
 ### Phase 2: Core Logic
 
-- [ ] **Task 2.1** — Account identifier detection (code vs UUID)
+- [x] **Task 2.1** — Account identifier detection (code vs UUID)
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: Inside the try body, add the UUID regex test (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) against the `account` parameter to derive an `isUUID` boolean, determining whether matching is done against `AccountID` or `AccountCode`. No filtering logic yet — just the detection value, exercised via a small extracted check (or asserted through a call that stubs `getJournals` to return an empty page and inspecting which field the loop *would* filter on in Task 2.5 — for this task, a direct unit assertion on the detection logic is sufficient).
   - Acceptance: Given `account = "631"`, detection yields "match by AccountCode". Given `account = "A1B2C3D4-E5F6-7890-ABCD-EF1234567890"` (uppercase), detection yields "match by AccountID" (case-insensitive).
   - Depends on: Task 1.2
   - Examples: Example 3
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.2** — `ifModifiedSince` derivation from `fromDate`
+- [x] **Task 2.2** — `ifModifiedSince` derivation from `fromDate`
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: Derive the `ifModifiedSince` argument passed to `getJournals`: `new Date(fromDate)` when `fromDate` is provided, `undefined` when omitted. Wire this into the (still-stubbed) `getJournals` call so the mock's call arguments can be asserted directly.
   - Acceptance: Given `fromDate = "2026-06-01"`, the mock `getJournals` is called with `ifModifiedSince` equal to `new Date("2026-06-01")`. Given `fromDate` omitted, `getJournals` is called with `ifModifiedSince = undefined`.
   - Depends on: Task 2.1
   - Examples: Example 8
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.3** — Bounded paging loop
+- [x] **Task 2.3** — Bounded paging loop
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: Implement the loop calling `accountingApi.getJournals(tenantId, ifModifiedSince, currentOffset, false, getClientHeaders())`, starting `currentOffset` at the caller's `offset` (default `0`). After each call, update `currentOffset` to the highest `JournalNumber` seen in that page. Stop when either (a) the page returned fewer than 100 journals (Xero's last page), or (b) `MAX_PAGES_PER_CALL` calls have been made. Accumulate all journals seen across pages into a single array for the next tasks to filter. Do not compute `nextOffset` yet — that is Task 2.6.
   - Acceptance: Given a mock `getJournals` that returns 100 journals on every call, after `MAX_PAGES_PER_CALL` calls the loop stops having made exactly `MAX_PAGES_PER_CALL` calls, with `currentOffset` equal to the highest `JournalNumber` seen on the final call. Given a mock that returns fewer than 100 journals on the first call, the loop stops after exactly one call.
   - Depends on: Task 2.2
   - Examples: Example 4, Example 5
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.4** — Journal-date normalisation + range filtering
+- [x] **Task 2.4** — Journal-date normalisation + range filtering
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: For each journal accumulated by the loop, compute `const journalDay = formatDate(journal.journalDate)` **before** any comparison (xero-node deserialises Xero's wire date into a JS `Date` despite the SDK's declared `string` type on `Journal.journalDate` — a raw string-prefix compare would silently misfilter). Skip the journal entirely unless `(!fromDate || journalDay >= fromDate) && (!toDate || journalDay <= toDate)` — both bounds are optional per design.md FR3/step 5 (the literal expression in design.md omits the `!fromDate ||` guard, but "both bounds optional" is the stated intent — implement the guarded form so an omitted `fromDate` does not exclude every journal). Retain `journalDay` per surviving journal for reuse in row assembly (Task 2.5) — normalise once per journal, not per line.
   - Acceptance: Given journals with `JournalDate` values `"2026-05-31"` (before `fromDate`) and `"2026-07-01"` (after `toDate`) alongside in-range journals, When filtered with `fromDate: "2026-06-01", toDate: "2026-06-30"`, Then only the in-range journals survive.
   - Depends on: Task 2.3
   - Examples: Example 9
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.5** — Line filtering by account + row assembly
+- [x] **Task 2.5** — Line filtering by account + row assembly
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: For each journal that survived Task 2.4's date filter, iterate its `journalLines`. Keep a line if `line.accountID === account` (UUID mode, per Task 2.1's detection) or `line.accountCode === account` (code mode). Map each matching line to the flat row shape: `{ date: journalDay, journalNumber: journal.journalNumber, accountCode: line.accountCode, accountName: line.accountName, description: line.description, netAmount: line.netAmount, grossAmount: line.grossAmount, taxAmount: line.taxAmount, taxType: line.taxType, sourceType: journal.sourceType }`. Collect all matching rows into an array.
   - Acceptance: Given a journal line with `accountCode: "631"` and all other fields populated (per design.md Example 10's fixture), the assembled row matches the exact shape in Example 10. Given the same data addressed by `AccountID` instead (Example 2), the same lines are matched via the UUID field.
   - Depends on: Task 2.1, Task 2.4
   - Examples: Example 1, Example 2, Example 10
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
-- [ ] **Task 2.6** — Continuation cursor + envelope assembly
+- [x] **Task 2.6** — Continuation cursor + envelope assembly
   - File(s): `src/handlers/list-xero-account-transactions.handler.ts`, `src/__tests__/handlers/list-xero-account-transactions.test.ts`
   - What to do: After the loop (Task 2.3) and row collection (Task 2.5) complete, compute `nextOffset`: `null` if the loop stopped because Xero returned a partial (<100) page (the scan is exhausted); otherwise the highest `JournalNumber` seen (the loop stopped because the page budget was exhausted, and more journals may remain — **regardless of whether any rows were collected**). Assemble and return `{ result: { account, showing: rows.length, nextOffset, rows }, isError: false, error: null }`. This is the task that must not conflate "no matching rows" with "scan is done" — a sparse account with `showing: 0` can still have a non-null `nextOffset`.
   - Acceptance: Example 4 (budget exhausted, matches found) → `nextOffset` is the highest `JournalNumber` seen, not `null`. Example 5 (final slice) → `nextOffset` is `null`. Example 6 (empty period, scan exhausted) → `{ showing: 0, nextOffset: null, rows: [] }`. Example 6b (sparse account, budget exhausted) → `{ showing: 0, nextOffset: <non-null>, rows: [] }` — a test asserting `nextOffset === null` whenever `showing === 0` must fail.
   - Depends on: Task 2.3, Task 2.5
   - Examples: Example 4, Example 5, Example 6, Example 6b
+  - Completed: 2026-07-18
+  - Tests: `src/__tests__/handlers/list-xero-account-transactions.test.ts`
 
 - [ ] **Task 2.7** — New tool: `list-account-transactions.tool.ts`
   - File(s): `src/tools/list/list-account-transactions.tool.ts` (new)
