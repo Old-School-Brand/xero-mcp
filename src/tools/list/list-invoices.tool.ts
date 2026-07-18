@@ -3,6 +3,7 @@ import { listXeroInvoices } from "../../handlers/list-xero-invoices.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { formatLineItem } from "../../helpers/format-line-item.js";
 import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { paginationHint } from "../../helpers/pagination-hint.js";
 
 const ListInvoicesTool = CreateXeroTool(
   "list-invoices",
@@ -10,7 +11,7 @@ const ListInvoicesTool = CreateXeroTool(
   Ask the user if they want to see invoices for a specific contact, \
   invoice number, or to see all invoices before running. \
   Ask the user if they want the next page of invoices after running this tool \
-  if 10 invoices are returned. \
+  if 100 invoices are returned. \
   If they want the next page, call this tool again with the next page number \
   and the contact or invoice number if one was provided in the previous call.",
   {
@@ -36,6 +37,8 @@ const ListInvoicesTool = CreateXeroTool(
 
     const invoices = response.result;
     const returnLineItems = (invoiceNumbers?.length ?? 0) > 0;
+
+    const hint = paginationHint(invoices?.length ?? 0, page);
 
     return {
       content: [
@@ -91,6 +94,7 @@ const ListInvoicesTool = CreateXeroTool(
             .filter(Boolean)
             .join("\n"),
         })) || []),
+        ...(hint ? [{ type: "text" as const, text: hint }] : []),
       ],
     };
   },

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { listXeroPayments } from "../../handlers/list-xero-payments.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { paginationHint } from "../../helpers/pagination-hint.js";
 import { Payment } from "xero-node";
 
 function paymentFormatter(payment: Payment): string {
@@ -76,6 +77,7 @@ const ListPaymentsTool = CreateXeroTool(
     }
 
     const payments = response.result;
+    const hint = paginationHint(payments?.length ?? 0, page);
 
     return {
       content: [
@@ -87,6 +89,7 @@ const ListPaymentsTool = CreateXeroTool(
           type: "text" as const,
           text: paymentFormatter(payment),
         })) || []),
+        ...(hint ? [{ type: "text" as const, text: hint }] : []),
       ],
     };
   },

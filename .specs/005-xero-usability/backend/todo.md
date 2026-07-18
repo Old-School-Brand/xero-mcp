@@ -108,40 +108,45 @@ task's test(s) must cover.
 
 ### Phase 3: Integration & Verification
 
-- [ ] **Task 3.1** — Invoices: pageSize 100 + pagination hint
+- [x] **Task 3.1** — Invoices: pageSize 100 + pagination hint
   - File(s): `src/handlers/list-xero-invoices.handler.ts`, `src/tools/list/list-invoices.tool.ts`
   - What to do: In the handler, change the `pageSize` literal argument to `getInvoices` from `10` to `100`. In the tool, update the description text "if 10 invoices are returned" to "if 100 invoices are returned", and after building the existing response `content` array, compute `paginationHint(invoices?.length ?? 0, page)` and — if non-null — append it as an additional `{ type: "text", text: hint }` block. No inline count/page/pageSize logic in the tool file; the helper (Task 1.1) owns it.
   - Acceptance: Given the mock `getInvoices` is called, it receives `pageSize: 100`. Given 100 invoices are returned for `page: 1`, the tool response includes a text block "Showing 100 — call with page 2 for more". Given 42 invoices are returned, no such block is present.
   - Depends on: Task 1.1
   - Examples: Example 11, Example 12, Example 13
+  - Completed: 2026-07-18
 
-- [ ] **Task 3.2** — Manual Journals: pageSize 100 + pagination hint
+- [x] **Task 3.2** — Manual Journals: pageSize 100 + pagination hint
   - File(s): `src/handlers/list-xero-manual-journals.handler.ts`, `src/tools/list/list-manual-journals.tool.ts`
   - What to do: Same shape as Task 3.1: `pageSize` literal `10` → `100` in `getManualJournals`; tool description "10" → "100"; append `paginationHint(manualJournals?.length ?? 0, args?.page ?? 1)` to the response content when non-null (note: `page` is optional on this tool's schema, unlike invoices — default to `1` to match the handler's own default).
   - Acceptance: Same pattern as Task 3.1, applied to manual journals.
   - Depends on: Task 1.1
   - Examples: Example 11, Example 12, Example 13 (applied to manual journals)
+  - Completed: 2026-07-18
 
-- [ ] **Task 3.3** — Bank Transactions: pageSize 100 + pagination hint
+- [x] **Task 3.3** — Bank Transactions: pageSize 100 + pagination hint
   - File(s): `src/handlers/list-xero-bank-transactions.handler.ts`, `src/tools/list/list-bank-transactions.tool.ts`
   - What to do: Same shape as Task 3.1: `pageSize` literal `10` → `100` in `getBankTransactions`; tool description "10" → "100"; append `paginationHint(bankTransactions?.length ?? 0, page)` to the response content when non-null.
   - Acceptance: Same pattern as Task 3.1, applied to bank transactions.
   - Depends on: Task 1.1
   - Examples: Example 11, Example 12, Example 13 (applied to bank transactions)
+  - Completed: 2026-07-18
 
-- [ ] **Task 3.4** — Credit Notes: pageSize 100 + pagination hint
+- [x] **Task 3.4** — Credit Notes: pageSize 100 + pagination hint
   - File(s): `src/handlers/list-xero-credit-notes.handler.ts`, `src/tools/list/list-credit-notes.tool.ts`
   - What to do: Same shape as Task 3.1: `pageSize` literal `10` → `100` in `getCreditNotes`; tool description "10" → "100"; append `paginationHint(creditNotes?.length ?? 0, page)` to the response content when non-null.
   - Acceptance: Same pattern as Task 3.1, applied to credit notes.
   - Depends on: Task 1.1
   - Examples: Example 11, Example 12, Example 13 (applied to credit notes)
+  - Completed: 2026-07-18
 
-- [ ] **Task 3.5** — Payments: pageSize 100 + pagination hint
+- [x] **Task 3.5** — Payments: pageSize 100 + pagination hint
   - File(s): `src/handlers/list-xero-payments.handler.ts`, `src/tools/list/list-payments.tool.ts`
   - What to do: Same shape as Task 3.1: `pageSize` literal `10` → `100` in `getPayments`; tool description references generic "many payments" text already — no numeric literal to change there, but confirm and update if a "10" reference exists at build time. Append `paginationHint(payments?.length ?? 0, page)` to the response content when non-null.
   - Acceptance: Same pattern as Task 3.1, applied to payments.
   - Depends on: Task 1.1
   - Examples: Example 11, Example 12, Example 13 (applied to payments)
+  - Completed: 2026-07-18
 
 - [ ] **Task 3.6** — Verify Workstream C (`offline_access`) is already applied and green
   - File(s): none edited — read-only verification of `src/http/auth/build.ts`, `src/__tests__/http/auth/bridge-provider.test.ts`, `src/__tests__/http/auth/callback-handler.test.ts`, `src/__tests__/http/auth/build.test.ts`
