@@ -9,7 +9,7 @@
 > was reverted**: Xero gates the Journals endpoint behind the Advanced developer-app plan
 > (~AUD $1,445/mo) + security assessment + use-case approval, which the app does not have (Starter
 > plan), so it returned 403 in production. The A-related sections below are retained as the record of
-> what was built and why it was pulled. See `.specs/backlog/general-ledger-advanced-tier-access.md`.
+> what was built and why it was pulled. See `.specs/PRD.md` §5 (Out of Scope).
 
 ## Problem Statement
 

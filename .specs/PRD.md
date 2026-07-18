@@ -66,6 +66,7 @@ Broad strokes only — concrete decisions belong in per-feature `requirements.md
 - **Rewriting the handler-per-resource pattern, swapping the `xero-node` SDK, changing the MCP transport** — anything that would create hard divergence and make every upstream merge painful.
 - **A web UI, admin console, or REST API** — this is an MCP server, exposing MCP over stdio (local) and Streamable HTTP (remote). Nothing beyond the MCP surface.
 - **Multi-tenant SaaS hosting** — out of scope; the fork is for our own team's use.
+- **Line-level general-ledger / journal detail** — the Xero Journals endpoint requires Xero's Advanced developer-app plan, which we do not have and do not plan to purchase. (A `list-account-transactions` tool was built and reverted for this reason.)
 
 ## 6. Design Principles (Non-Negotiable)
 

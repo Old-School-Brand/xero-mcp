@@ -1,6 +1,6 @@
 # Design: Xero Usability — GL Access, Pagination & Session Persistence
 **Layer:** backend
-**Status:** Confirmed — **workstream A (GL tool) REVERTED post-merge (Journals endpoint is Advanced-tier gated); B + C shipped.** See `.specs/backlog/general-ledger-advanced-tier-access.md`. A-sections retained as record.
+**Status:** Confirmed — **workstream A (GL tool) REVERTED post-merge (Journals endpoint is Advanced-tier gated); B + C shipped.** See `.specs/PRD.md` §5 (Out of Scope). A-sections retained as record.
 **Last updated:** 2026-07-18 (revised per design-review: journalDate normalisation, ifModifiedSince completeness caveat + complete mode, workstream C reconciled to already-applied `openid offline_access` (verify-only), sparse-account continuation contract + Example 6b, `paginationHint` DRY helper, corrected report-tool-consistency claim)
 **Domain language:** Validated against `.specs/GLOSSARY.md` (three additions promoted in step 4b: General Ledger, Journals endpoint, list-account-transactions).
 
