@@ -4,8 +4,14 @@
 
 Some list tools return enormous, unpaginated responses, and the deployed origin intermittently returns
 502s. We want the tool surface to stay within safe response sizes and the deployment to serve reliably
-under normal use. Split out of feature 004 (which handles response *formatting* only) because this spans
-backend + infra and needs live pod logs to root-cause — deferred by owner decision (investigate later).
+under normal use. Split out of feature 004 (which handled response *formatting* only, now merged in PR #8)
+because this spans backend + infra and needs live pod logs to root-cause.
+
+> **Related backlog item:** *General Ledger Access & Connector Session Persistence* covers the **opposite**
+> symptom — tools that return too *little* (handlers hard-code `pageSize: 10`, and there is no GL tool at
+> all). This item is about responses that are too *big*. Both are facets of one pagination/response-size
+> strategy — whoever picks up either should design them together so the tool surface ends up coherent
+> (sensible page sizes, consistent "showing N of M, call with page X" messaging, and a size ceiling).
 
 ## Notes
 
@@ -20,9 +26,13 @@ Discovered 2026-07-05 while exercising the deployed `Xero MCP` server for featur
 - Both exceed the harness per-response token cap (results had to be spilled to disk). An 8.3 MB response
   will break/blow the context of most MCP clients.
 - Options to weigh: server-side page-slicing + honest "showing N of M, call with page X" messaging;
-  a hard response-size guard with truncation notice; field trimming (the verbose date suffix alone was
-  ~9% of the items payload — largely resolved once 004's ISO date fix lands); or a `search`/filter-first
-  pattern so clients don't pull the whole catalogue.
+  a hard response-size guard with truncation notice; field trimming (the verbose raw-`Date` suffix alone
+  was ~9% of the items payload — **now trimmed by feature 004's ISO date fix, merged in PR #8**, so a
+  fresh size measurement is worth taking before scoping); or a `search`/filter-first pattern so clients
+  don't pull the whole catalogue.
+- Symptom mapping (from first-user feedback): the "keeps disconnecting mid-use" complaint is most likely
+  the **502s** below (large response → origin crash), as distinct from the *session-expiry re-login*
+  complaint, which is the connector-session issue in the GL/session backlog item.
 - Note: some of this is arguably upstream behaviour (PR to `XeroAPI/xero-mcp-server`); decide upstream-vs-
   fork per PRD §8 when scoping.
 
