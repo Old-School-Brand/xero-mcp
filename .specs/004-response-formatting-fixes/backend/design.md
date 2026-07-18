@@ -138,7 +138,7 @@ Each site interpolates `.map(formatter)` (a `string[]`) without `.join()`, produ
 |------|------|---------|-----|
 | `src/tools/list/list-invoices.tool.ts` | 85 | `Line Items: ${invoice.lineItems?.map(formatLineItem)}` | `invoice.lineItems?.length ? \`Line Items:\n${invoice.lineItems.map(formatLineItem).join("\n\n")}\` : "Line Items: No line items"` |
 | `src/tools/list/list-bank-transactions.tool.ts` | 60 | `Line Items: ${transaction.lineItems?.map(formatLineItem)}` | Same pattern |
-| `src/tools/list/list-tracking-categories.tool.ts` | 41 | `...tracking options:\n${category.options?.map(formatTrackingOption)}` | `category.options?.length ? \`Tracking Options:\n${category.options.map(formatTrackingOption).join("\n\n")}\` : "No tracking options"` |
+| `src/tools/list/list-tracking-categories.tool.ts` | 41 | `...tracking options:\n${category.options?.map(formatTrackingOption)}` | keep the `Found N tracking options:` count line, then `category.options?.length ? category.options.map(formatTrackingOption).join("\n\n") : "No tracking options"` (no separate `Tracking Options:` header — the count line is the only header) |
 | `src/tools/create/create-tracking-options.tool.ts` | 33 | `...created:\n${trackingOptions.map(formatTrackingOption)}` | Add `.join("\n\n")` |
 | `src/tools/update/update-tracking-options.tool.ts` | 39 | `...updated:\n${trackingOptions.map(formatTrackingOption)}` | Add `.join("\n\n")` |
 

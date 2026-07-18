@@ -40,7 +40,7 @@ Verified separately: all ~45 date sites pick formatDate vs formatDateTime correc
 - [x] nit — duplicate "tracking options" header — `src/tools/list/list-tracking-categories.tool.ts`:41-44
       Output shows `Found N tracking options:` immediately followed by `Tracking Options:`. todo.md-specified artifact; satisfies AC 6 but reads redundantly.
       Recommendation: Drop the second `Tracking Options:` label or fold the count in (`Tracking Options (N):`). Cosmetic.
-      Dismissed (iteration 2): owner chose to accept as-is; cosmetic only, no functional impact.
+      Resolved (post-review): an external reviewer of PR #8 independently confirmed the double header; the redundant `Tracking Options:` prefix was dropped, keeping the `Found N tracking options:` count line and the `No tracking options` fallback.
 - [x] nit — incidental whitespace/newline churn across ~12 date-site diffs — e.g. `list-credit-notes.tool.ts`, `list-quotes.tool.ts`, `create-invoice.tool.ts`
       Trailing-whitespace trims and final-newline additions inflate some diffs beyond the one-line date wrap. Genuine cleanup, not complexity.
       Dismissed (iteration 2): no action needed; genuine cleanup. To be noted in the PR description.
