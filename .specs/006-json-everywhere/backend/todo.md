@@ -14,10 +14,12 @@ Ordered, file-level. TDD-light: helper test first, then the mechanical sweep, ve
    - Tests: src/__tests__/helpers/json-response.test.ts
 
 ## Phase 2 — remove dead helpers
-3. Delete `src/helpers/pagination-hint.ts` + `src/__tests__/helpers/pagination-hint.test.ts`; remove
+3. [x] Delete `src/helpers/pagination-hint.ts` + `src/__tests__/helpers/pagination-hint.test.ts`; remove
    `paginationHint` import + call in the 5 transaction tools.
-4. Delete `src/helpers/format-line-item.ts` (+ any test) — orphaned once invoices + bank-transactions
+   - Completed: 2026-07-19
+4. [x] Delete `src/helpers/format-line-item.ts` (+ any test) — orphaned once invoices + bank-transactions
    convert. (Leave `format-tracking-option`; still used by create/update-tracking-options.)
+   - Completed: 2026-07-19
 
 ## Phase 3 — convert read tools (raw passthrough)
 5. [x] Convert the **20 text list tools** → `return listResponse(response.result)`, deleting the text
