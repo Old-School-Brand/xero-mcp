@@ -31,6 +31,19 @@ describe("jsonResponse", () => {
 
     expect(parse(jsonResponse(value))).toEqual(value);
   });
+
+  it("test_jsonResponse_redactsAPIKeyAtAnyDepth_keepsSiblings", () => {
+    const value = {
+      aPIKey: "top-secret",
+      name: "Org",
+      nested: { aPIKey: "also-secret", paysTax: false },
+    };
+
+    expect(parse(jsonResponse(value))).toEqual({
+      name: "Org",
+      nested: { paysTax: false },
+    });
+  });
 });
 
 describe("listResponse", () => {

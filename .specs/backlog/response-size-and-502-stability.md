@@ -58,6 +58,33 @@ Discovered 2026-07-05 while exercising the deployed `Xero MCP` server for featur
 - `kubectl top pod <pod>` — memory headroom vs the 1 Gi limit during a `list-items` call.
 - Correlate a deliberate `list-items` call with pod memory and any restart.
 
+### Post-v0.3.0 tester feedback (2026-07-19) — folds into this item
+
+First-user re-test after the 006-json-everywhere rollout confirmed data accuracy but flagged
+format/size issues. Verified measurements (live against the dev instance):
+
+- **Envelope inconsistency:** the 5 report tools never got the `{showing, rows}` envelope
+  (ADR-0005 deferred it) — `list-trial-balance` returns 4 content blocks (3 prose lines + Xero's
+  raw pretty-printed report tree). Tester asks for one envelope everywhere.
+- **Trial balance bloat:** every cell repeats the same account GUID in `attributes` — measured
+  **64.4%** of the 441 KB payload (1,795 attribute blocks; 359 rows × 5 cells). A row-level
+  transform (account ID once per row) cuts ~60% of the payload.
+- **list-accounts:** 609 rows / ~265 KB, no pagination, no `activeOnly` filter (35 rows are
+  ARCHIVED). Tester asks for field-trimming (`code, name, ID, type, status` cover most uses)
+  and/or a `fields` param.
+- **Sensitive fields for the trimming discussion:** `bankAccountNumber` has real values on the
+  26 bank-type account rows; `list-organisation-details` emits PII-adjacent registry data
+  (tax number, named contact, phones). Credential redaction (`aPIKey`) already shipped as a
+  hotfix (ADR-0005 amendment); these are field-*selection* questions, not redaction.
+- **Not a bug:** tester's `"showing":609` vs 608 pre-upgrade — `showing` is exactly
+  `rows.length`; the chart of accounts is growing (598 on 2026-07-05 → 609 on 2026-07-19), so
+  the delta is a real record.
+
+**Owner's design constraint for scoping (discuss before refinery):** medium-sized responses are
+the worst outcome — they dump straight into LLM context. Prefer either **short** responses
+(trimmed fields, filters, small pages) or **deliberately large file-spill** responses that
+clients analyze via scripts. Don't optimize toward the middle.
+
 ## Layers
 backend (response-size guarding / pagination messaging) + infra (pod memory limits, replica count,
 ingress limits).

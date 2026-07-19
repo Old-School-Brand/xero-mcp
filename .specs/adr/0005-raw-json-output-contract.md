@@ -57,6 +57,17 @@ tools are unchanged.
 - Residual inconsistency: report tools remain pretty-printed bare arrays rather than the `{showing,rows}`
   envelope.
 
+## Amendment — credential passthrough regression (2026-07-19)
+
+Raw passthrough leaked a credential the old text formatter never emitted:
+`Organisation.aPIKey` — the org's **Xero-to-Xero network key** — appeared in
+`list-organisation-details` output and reached LLM transcripts (first-user report; key rotated
+by the owner). Fix: `jsonResponse` now applies a sensitive-key deny-list (`REDACTED_KEYS` in
+`src/helpers/json-response.ts`) via a `JSON.stringify` replacer, covering every read tool at the
+single serialization choke point. The deny-list is the standing home for any future
+credential-bearing Xero fields; broader field-trimming/PII decisions stay with the
+response-size backlog item.
+
 ## Alternatives Considered
 
 - **Curated flat rows per tool** — rejected: every tool carries a hand-maintained field list, the exact
