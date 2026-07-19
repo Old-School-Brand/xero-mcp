@@ -1,10 +1,16 @@
 /*
- * Guards the paginationHint wiring in the five transaction tool files (review iter-2, staff finding).
- * list-invoices is the representative case; the other four (manual-journals, bank-transactions,
- * credit-notes, payments) use the identical `...(hint ? [{...}] : [])` append pattern. These tool
- * files are upstream-owned and have no other test coverage, so this guards the "showing N — call
- * page X" messaging from a silent regression on an upstream merge.
- */
+Task: 9 — rewrite list-invoices.tool.test.ts for the JSON envelope
+Source: .specs/006-json-everywhere/backend/todo.md
+
+Examples covered:
+  - AC1: list-invoices({page:1}) returns one content block of minified JSON
+    {"showing":N,"hasMore":bool,"rows":[…]}, and a paid invoice's amountDue:0 survives.
+
+Test plan:
+  - test_fullPage_returnsEnvelopeWithHasMoreTrue: 1000 rows (pageSize) sets hasMore true, rows intact
+  - test_partialPage_returnsEnvelopeWithHasMoreFalse: fewer than 1000 rows sets hasMore false
+  - test_zeroValuedAmountDue_survivesInRows: a mocked invoice with amountDue:0 is not dropped
+*/
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -20,27 +26,58 @@ function invoices(n: number) {
 
 async function runPage(page: number) {
   const result = await ListInvoicesTool().handler({ page } as never, {} as never);
-  return (result.content as { type: "text"; text: string }[]).map((c) => c.text);
+  const content = result.content as { type: "text"; text: string }[];
+  expect(content).toHaveLength(1);
+  return JSON.parse(content[0].text) as {
+    showing: number;
+    hasMore: boolean;
+    rows: unknown[];
+  };
 }
 
 beforeEach(() => {
   listXeroInvoices.mockReset();
 });
 
-describe("list-invoices tool — paginationHint wiring", () => {
-  it("appends the pagination hint when a full page (100) is returned", async () => {
-    listXeroInvoices.mockResolvedValue({ result: invoices(1000), isError: false, error: null });
+describe("list-invoices tool — JSON envelope", () => {
+  it("test_fullPage_returnsEnvelopeWithHasMoreTrue", async () => {
+    listXeroInvoices.mockResolvedValue({
+      result: invoices(1000),
+      isError: false,
+      error: null,
+    });
 
-    const texts = await runPage(1);
+    const envelope = await runPage(1);
 
-    expect(texts.some((t) => t.includes("call with page 2"))).toBe(true);
+    expect(envelope.showing).toBe(1000);
+    expect(envelope.hasMore).toBe(true);
+    expect(envelope.rows).toEqual(invoices(1000));
   });
 
-  it("omits the pagination hint when fewer than 100 are returned", async () => {
-    listXeroInvoices.mockResolvedValue({ result: invoices(42), isError: false, error: null });
+  it("test_partialPage_returnsEnvelopeWithHasMoreFalse", async () => {
+    listXeroInvoices.mockResolvedValue({
+      result: invoices(42),
+      isError: false,
+      error: null,
+    });
 
-    const texts = await runPage(1);
+    const envelope = await runPage(1);
 
-    expect(texts.some((t) => t.includes("call with page"))).toBe(false);
+    expect(envelope.showing).toBe(42);
+    expect(envelope.hasMore).toBe(false);
+  });
+
+  it("test_zeroValuedAmountDue_survivesInRows", async () => {
+    const invoice = { invoiceID: "inv-paid", amountDue: 0 };
+    listXeroInvoices.mockResolvedValue({
+      result: [invoice],
+      isError: false,
+      error: null,
+    });
+
+    const envelope = await runPage(1);
+
+    expect(envelope.rows).toEqual([invoice]);
+    expect((envelope.rows[0] as { amountDue: number }).amountDue).toBe(0);
   });
 });
