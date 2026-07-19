@@ -23,7 +23,7 @@ A long-lived fork with a narrow, deliberately additive purpose:
 
 - **Track upstream.** Pull in every upstream release. Conflicts resolve in favour of upstream unless they touch a deliberate org-specific seam.
 - **Layer in org-specific improvements.** Each improvement is its own small feature, scoped to `security`, `deployment`, or `upstream-tracking`.
-- **Never modify the public MCP tool contract.** Tools, parameter schemas, and Xero API resource coverage are upstream's job. Changes there belong as PRs to upstream, not divergent code here. (If we ever need to *temporarily* diverge — e.g. to scope-gate or wrap an existing tool — that wrap stays cleanly isolated so it can be removed when upstream supports it natively.)
+- **Never modify the public MCP tool contract.** Tools, parameter schemas, and Xero API resource coverage are upstream's job. Changes there belong as PRs to upstream, not divergent code here. (If we ever need to *temporarily* diverge — e.g. to scope-gate or wrap an existing tool — that wrap stays cleanly isolated so it can be removed when upstream supports it natively.) *"Contract" here means tool **names, parameters, and Xero resource coverage** — not output **rendering format**, which is fork-owned (see feature 004 and **ADR-0005**: read tools emit raw JSON).*
 
 ## 3. Users & Roles
 
