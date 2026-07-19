@@ -47,7 +47,8 @@ Ordered, file-level. TDD-light: helper test first, then the mechanical sweep, ve
    - Tests: src/__tests__/tools/list-invoices.tool.test.ts
 10. [x] Write `.specs/adr/0005-*.md` (raw JSON output contract) + one-line PRD §2 clarification.
     - Completed: 2026-07-19
-11. `.specs/REPO.md` — extend the upstream-isolation exception note to 006.
+11. [x] `.specs/REPO.md` — extend the upstream-isolation exception note to 006.
+    - Completed: 2026-07-19
 
 ## Out of scope (do NOT touch)
 - 5 report tools (already JSON). create/update/delete tools. Error branches (keep `formatError` text).
