@@ -1,6 +1,6 @@
 # Todo: 006-json-everywhere
 
-**Layer:** backend · **Status:** In Progress
+**Layer:** backend · **Status:** Ready for Review
 
 Ordered, file-level. TDD-light: helper test first, then the mechanical sweep, verifying green throughout.
 
