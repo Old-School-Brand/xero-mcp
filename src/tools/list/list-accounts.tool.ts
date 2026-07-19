@@ -1,5 +1,6 @@
 import { listXeroAccounts } from "../../handlers/list-xero-accounts.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListAccountsTool = CreateXeroTool(
   "list-accounts",
@@ -18,30 +19,7 @@ const ListAccountsTool = CreateXeroTool(
       };
     }
 
-    const accounts = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${accounts?.length || 0} accounts:`,
-        },
-        ...(accounts?.map((account) => ({
-          type: "text" as const,
-          text: [
-            `Account: ${account.name || "Unnamed"}`,
-            `Code: ${account.code || "No code"}`,
-            `ID: ${account.accountID || "No ID"}`,
-            `Type: ${account.type || "Unknown type"}`,
-            `Status: ${account.status || "Unknown status"}`,
-            account.description ? `Description: ${account.description}` : null,
-            account.taxType ? `Tax Type: ${account.taxType}` : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

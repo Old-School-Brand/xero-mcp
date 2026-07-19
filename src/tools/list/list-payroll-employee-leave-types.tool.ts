@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollEmployeeLeaveTypes } from "../../handlers/list-xero-payroll-employee-leave-types.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate } from "../../helpers/format-date.js";
-import { EmployeeLeaveType } from "../../types/payroll-nz-types.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollEmployeeLeaveTypesTool = CreateXeroTool(
   "list-payroll-employee-leave-types",
@@ -25,43 +24,7 @@ const ListPayrollEmployeeLeaveTypesTool = CreateXeroTool(
       };
     }
 
-    const leaveTypes = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${leaveTypes?.length || 0} leave types for employee ${employeeId}:`,
-        },
-        ...(leaveTypes?.map((leaveType: EmployeeLeaveType) => ({
-          type: "text" as const,
-          text: [
-            `Leave Type ID: ${leaveType.leaveTypeID || "Unknown"}`,
-            `Schedule of Accrual: ${leaveType.scheduleOfAccrual || "Unknown"}`,
-            leaveType.typeOfUnitsToAccrue
-              ? `Type of Units: ${leaveType.typeOfUnitsToAccrue}`
-              : null,
-            leaveType.unitsAccruedAnnually
-              ? `Units Accrued Annually: ${leaveType.unitsAccruedAnnually}`
-              : null,
-            leaveType.maximumToAccrue
-              ? `Maximum To Accrue: ${leaveType.maximumToAccrue}`
-              : null,
-            leaveType.openingBalance
-              ? `Opening Balance: ${leaveType.openingBalance}`
-              : null,
-            leaveType.rateAccruedHourly
-              ? `Rate Accrued Hourly: ${leaveType.rateAccruedHourly}`
-              : null,
-            leaveType.scheduleOfAccrualDate
-              ? `Accrual Date: ${formatDate(leaveType.scheduleOfAccrualDate)}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

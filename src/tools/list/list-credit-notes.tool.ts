@@ -1,18 +1,17 @@
 import { z } from "zod";
 import { listXeroCreditNotes } from "../../handlers/list-xero-credit-notes.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
-import { paginationHint } from "../../helpers/pagination-hint.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListCreditNotesTool = CreateXeroTool(
   "list-credit-notes",
   `List credit notes in Xero.
   Ask the user if they want to see credit notes for a specific contact,
   or to see all credit notes before running.
-  Ask the user if they want the next page of credit notes after running this tool
-  if 1000 credit notes are returned.
-  If they want the next page, call this tool again with the next page number
-  and the contact if one was provided in the previous call.`,
+  The response's \`hasMore\` is true when a full page of 1000 credit notes
+  was returned — ask the user if they want the next page, then call this
+  tool again with the next page number and the contact if one was provided
+  in the previous call.`,
   {
     page: z.number(),
     contactId: z.string().optional(),
@@ -30,49 +29,7 @@ const ListCreditNotesTool = CreateXeroTool(
       };
     }
 
-    const creditNotes = response.result;
-    const hint = paginationHint(creditNotes?.length ?? 0, page);
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${creditNotes?.length || 0} credit notes:`,
-        },
-        ...(creditNotes?.map((creditNote) => ({
-          type: "text" as const,
-          text: [
-            `Credit Note ID: ${creditNote.creditNoteID}`,
-            `Credit Note Number: ${creditNote.creditNoteNumber}`,
-            creditNote.reference ? `Reference: ${creditNote.reference}` : null,
-            `Type: ${creditNote.type || "Unknown"}`,
-            `Status: ${creditNote.status || "Unknown"}`,
-            creditNote.contact
-              ? `Contact: ${creditNote.contact.name} (${creditNote.contact.contactID})`
-              : null,
-            creditNote.date ? `Date: ${formatDate(creditNote.date)}` : null,
-            creditNote.lineAmountTypes
-              ? `Line Amount Types: ${creditNote.lineAmountTypes}`
-              : null,
-            creditNote.subTotal ? `Sub Total: ${creditNote.subTotal}` : null,
-            creditNote.totalTax ? `Total Tax: ${creditNote.totalTax}` : null,
-            `Total: ${creditNote.total || 0}`,
-            creditNote.currencyCode
-              ? `Currency: ${creditNote.currencyCode}`
-              : null,
-            creditNote.currencyRate
-              ? `Currency Rate: ${creditNote.currencyRate}`
-              : null,
-            creditNote.updatedDateUTC
-              ? `Last Updated: ${formatDateTime(creditNote.updatedDateUTC)}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-        ...(hint ? [{ type: "text" as const, text: hint }] : []),
-      ],
-    };
+    return listResponse(response.result, 1000);
   },
 );
 

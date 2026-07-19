@@ -1,10 +1,8 @@
-import { Timesheet } from "xero-node/dist/gen/model/payroll-nz/timesheet.js";
-
 import {
   listXeroPayrollTimesheets,
 } from "../../handlers/list-xero-timesheets.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollTimesheetsTool = CreateXeroTool(
   "list-timesheets",
@@ -25,29 +23,7 @@ This retrieves comprehensive timesheet details including timesheet IDs, employee
       };
     }
 
-    const timesheets = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${timesheets?.length || 0} timesheets:`,
-        },
-        ...(timesheets?.map((timesheet: Timesheet) => ({
-          type: "text" as const,
-          text: [
-            `Timesheet ID: ${timesheet.timesheetID}`,
-            `Employee ID: ${timesheet.employeeID}`,
-            `Start Date: ${formatDate(timesheet.startDate)}`,
-            `End Date: ${formatDate(timesheet.endDate)}`,
-            `Total Hours: ${timesheet.totalHours}`,
-            `Last Updated: ${formatDateTime(timesheet.updatedDateUTC)}`,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 
