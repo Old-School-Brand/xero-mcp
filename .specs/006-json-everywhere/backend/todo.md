@@ -20,7 +20,7 @@ Ordered, file-level. TDD-light: helper test first, then the mechanical sweep, ve
    convert. (Leave `format-tracking-option`; still used by create/update-tracking-options.)
 
 ## Phase 3 — convert read tools (raw passthrough)
-5. Convert the **20 text list tools** → `return listResponse(response.result)`, deleting the text
+5. [x] Convert the **20 text list tools** → `return listResponse(response.result)`, deleting the text
    `.map(...)` builder, `Found N:` header, and now-unused imports:
    `list-accounts, list-bank-transactions, list-contact-groups, list-contacts, list-credit-notes,`
    `list-invoices, list-items, list-manual-journals, list-payments,`
@@ -28,11 +28,15 @@ Ordered, file-level. TDD-light: helper test first, then the mechanical sweep, ve
    `list-payroll-employee-leave-types, list-payroll-leave-periods, list-payroll-leave-types,`
    `list-payroll-timesheets, list-quotes, list-tax-rates, list-tracking-categories` (19)
    + the **5 transaction tools** pass page size: `listResponse(response.result, 1000)`.
-6. **`list-organisation-details`** (SPECIAL — single object): `return jsonResponse(response.result)`.
-7. **`get-payroll-timesheet`** (SPECIAL — nullable): keep the null branch ("No timesheet found…"),
+   - Completed: 2026-07-19
+6. [x] **`list-organisation-details`** (SPECIAL — single object): `return jsonResponse(response.result)`.
+   - Completed: 2026-07-19
+7. [x] **`get-payroll-timesheet`** (SPECIAL — nullable): keep the null branch ("No timesheet found…"),
    else `jsonResponse(response.result)`.
-8. Tool descriptions that referenced text pagination → keep the concrete page size, reword to reference
+   - Completed: 2026-07-19
+8. [x] Tool descriptions that referenced text pagination → keep the concrete page size, reword to reference
    `hasMore`/`showing` (e.g. "if `hasMore` is true, call the next page").
+   - Completed: 2026-07-19
 
 ## Phase 4 — tests, ADR, docs
 9. Rewrite `src/__tests__/tools/list-invoices.tool.test.ts` — assert the JSON envelope (parse + shape),

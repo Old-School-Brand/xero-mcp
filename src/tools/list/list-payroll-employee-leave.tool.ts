@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollEmployeeLeave } from "../../handlers/list-xero-payroll-employee-leave.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
-import { EmployeeLeave } from "../../types/payroll-nz-types.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollEmployeeLeaveTool = CreateXeroTool(
   "list-payroll-employee-leave",
@@ -23,30 +22,7 @@ const ListPayrollEmployeeLeaveTool = CreateXeroTool(
       };
     }
 
-    const leave = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${leave?.length || 0} leave records for employee ${employeeId}:`,
-        },
-        ...(leave?.map((leaveItem: EmployeeLeave) => ({
-          type: "text" as const,
-          text: [
-            `Leave ID: ${leaveItem.leaveID || "Unknown"}`,
-            `Leave Type: ${leaveItem.leaveTypeID || "Unknown"}`,
-            `Description: ${leaveItem.description || "No description"}`,
-            leaveItem.startDate ? `Start Date: ${formatDate(leaveItem.startDate)}` : null,
-            leaveItem.endDate ? `End Date: ${formatDate(leaveItem.endDate)}` : null,
-            leaveItem.periods ? `Periods: ${leaveItem.periods.length || 0}` : null,
-            leaveItem.updatedDateUTC ? `Last Updated: ${formatDateTime(leaveItem.updatedDateUTC)}` : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

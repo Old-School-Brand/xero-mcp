@@ -1,7 +1,6 @@
 import { listXeroPayrollLeaveTypes } from "../../handlers/list-xero-payroll-leave-types.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDateTime } from "../../helpers/format-date.js";
-import { LeaveType } from "../../types/payroll-nz-types.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollLeaveTypesTool = CreateXeroTool(
   "list-payroll-leave-types",
@@ -20,30 +19,7 @@ const ListPayrollLeaveTypesTool = CreateXeroTool(
       };
     }
 
-    const leaveTypes = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${leaveTypes?.length || 0} payroll leave types:`,
-        },        ...(leaveTypes?.map((leaveType: LeaveType) => ({
-          type: "text" as const,
-          text: [
-            `Leave Type: ${leaveType.name || "Unnamed"}`,
-            `Leave Type ID: ${leaveType.leaveTypeID || "Unknown"}`,
-            leaveType.isPaidLeave !== undefined ? `Is Paid Leave: ${leaveType.isPaidLeave ? 'Yes' : 'No'}` : null,
-            leaveType.showOnPayslip !== undefined ? `Show On Payslip: ${leaveType.showOnPayslip ? 'Yes' : 'No'}` : null,
-            leaveType.isActive !== undefined ? `Is Active: ${leaveType.isActive ? 'Yes' : 'No'}` : null,
-            leaveType.typeOfUnits ? `Type Of Units: ${leaveType.typeOfUnits}` : null,
-            leaveType.typeOfUnitsToAccrue ? `Type Of Units To Accrue: ${leaveType.typeOfUnitsToAccrue}` : null,
-            leaveType.updatedDateUTC ? `Last Updated: ${formatDateTime(leaveType.updatedDateUTC)}` : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

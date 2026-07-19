@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { listXeroQuotes } from "../../handlers/list-xero-quotes.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListQuotesTool = CreateXeroTool(
   "list-quotes",
@@ -27,51 +27,7 @@ const ListQuotesTool = CreateXeroTool(
       };
     }
 
-    const quotes = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${quotes?.length || 0} quotes:`,
-        },
-        ...(quotes?.map((quote) => ({
-          type: "text" as const,
-          text: [
-            `Quote ID: ${quote.quoteID}`,
-            `Quote Number: ${quote.quoteNumber}`,
-            quote.reference ? `Reference: ${quote.reference}` : null,
-            `Status: ${quote.status || "Unknown"}`,
-            quote.contact
-              ? `Contact: ${quote.contact.name} (${quote.contact.contactID})`
-              : null,
-            quote.dateString ? `Quote Date: ${formatDate(quote.dateString)}` : null,
-            quote.expiryDateString
-              ? `Expiry Date: ${formatDate(quote.expiryDateString)}`
-              : null,
-            quote.title ? `Title: ${quote.title}` : null,
-            quote.summary ? `Summary: ${quote.summary}` : null,
-            quote.terms ? `Terms: ${quote.terms}` : null,
-            quote.lineAmountTypes
-              ? `Line Amount Types: ${quote.lineAmountTypes}`
-              : null,
-            quote.subTotal ? `Sub Total: ${quote.subTotal}` : null,
-            quote.totalTax ? `Total Tax: ${quote.totalTax}` : null,
-            `Total: ${quote.total || 0}`,
-            quote.totalDiscount
-              ? `Total Discount: ${quote.totalDiscount}`
-              : null,
-            quote.currencyCode ? `Currency: ${quote.currencyCode}` : null,
-            quote.currencyRate ? `Currency Rate: ${quote.currencyRate}` : null,
-            quote.updatedDateUTC
-              ? `Last Updated: ${formatDateTime(quote.updatedDateUTC)}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

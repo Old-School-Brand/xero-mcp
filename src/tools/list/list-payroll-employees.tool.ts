@@ -1,7 +1,6 @@
-import { Employee } from "../../types/payroll-nz-types.js";
 import { listXeroPayrollEmployees } from "../../handlers/list-xero-payroll-employees.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollEmployeesTool = CreateXeroTool(
   "list-payroll-employees",
@@ -23,37 +22,7 @@ The response presents a complete overview of all staff currently registered in y
       };
     }
 
-    const employees = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${employees?.length || 0} payroll employees:`,
-        },
-        ...(employees?.map((employee: Employee) => ({
-          type: "text" as const,
-          text: [
-            `Employee: ${employee.employeeID}`,
-            employee.email ? `Email: ${employee.email}` : "No email",
-            employee.gender ? `Gender: ${employee.gender}` : null,
-            employee.phoneNumber ? `Phone: ${employee.phoneNumber}` : null,
-            employee.startDate ? `Start Date: ${formatDate(employee.startDate)}` : null,
-            employee.engagementType
-              ? `Engagement Type: ${employee.engagementType}`
-              : "No status", // Permanent, FixedTerm, Casual
-            employee.title ? `Title: ${employee.title}` : null,
-            employee.firstName ? `First Name: ${employee.firstName}` : null,
-            employee.lastName ? `Last Name: ${employee.lastName}` : null,
-            employee.updatedDateUTC
-              ? `Last Updated: ${formatDateTime(employee.updatedDateUTC)}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

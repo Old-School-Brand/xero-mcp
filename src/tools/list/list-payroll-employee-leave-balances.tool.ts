@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { listXeroPayrollEmployeeLeaveBalances } from "../../handlers/list-xero-payroll-employee-leave-balances.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { EmployeeLeaveBalance } from "../../types/payroll-nz-types.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListPayrollEmployeeLeaveBalancesTool = CreateXeroTool(
   "list-payroll-employee-leave-balances",
@@ -22,27 +22,7 @@ const ListPayrollEmployeeLeaveBalancesTool = CreateXeroTool(
       };
     }
 
-    const leaveBalances = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${leaveBalances?.length || 0} leave balances for employee ${employeeId}:`,
-        },
-        ...(leaveBalances?.map((balance: EmployeeLeaveBalance) => ({
-          type: "text" as const,
-          text: [
-            `Leave Type ID: ${balance.leaveTypeID || "Unknown"}`,
-            `Name: ${balance.name || "Unnamed"}`,
-            balance.typeOfUnits ? `Type Of Units: ${balance.typeOfUnits}` : null,
-            balance.balance !== undefined ? `Current Balance: ${balance.balance}` : null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 

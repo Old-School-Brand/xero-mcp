@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
 import { listXeroTrackingCategories } from "../../handlers/list-xero-tracking-categories.handler.js";
-import { formatTrackingOption } from "../../helpers/format-tracking-option.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListTrackingCategoriesTool = CreateXeroTool(
   "list-tracking-categories",
@@ -24,28 +24,7 @@ const ListTrackingCategoriesTool = CreateXeroTool(
       };
     }
 
-    const trackingCategories = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${trackingCategories?.length || 0} tracking categories:`
-        },
-        ...(trackingCategories?.map((category) => ({
-          type: "text" as const,
-          text: [
-            `Tracking Category ID: ${category.trackingCategoryID}`,
-            `Name: ${category.name}`,
-            `Status: ${category.status}`,
-            `Found ${category.options?.length || 0} tracking options:`,
-            category.options?.length
-              ? category.options.map(formatTrackingOption).join("\n\n")
-              : "No tracking options",
-          ].filter(Boolean).join("\n")
-        })) || [])
-      ]
-    };
+    return listResponse(response.result);
   }
 );
 

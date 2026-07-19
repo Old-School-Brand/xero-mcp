@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { listXeroContactGroups } from "../../handlers/list-xero-contact-groups.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { listResponse } from "../../helpers/json-response.js";
 
 const ListContactGroupsTool = CreateXeroTool(
   "list-contact-groups",
@@ -10,11 +11,11 @@ const ListContactGroupsTool = CreateXeroTool(
     contactGroupId: z
       .string()
       .optional()
-      .describe("Optional ID of the contact group to retrieve"),    
+      .describe("Optional ID of the contact group to retrieve"),
   },
   async (args) => {
     const response = await listXeroContactGroups(args?.contactGroupId);
-    
+
     if (response.error !== null) {
       return {
         content: [
@@ -26,33 +27,7 @@ const ListContactGroupsTool = CreateXeroTool(
       };
     }
 
-    const contactGroups = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Found ${contactGroups?.length || 0} contact groups:`,
-        },
-        ...(contactGroups?.map((contactGroup) => ({
-          type: "text" as const,
-          text: [
-            `Contact Group ID: ${contactGroup.contactGroupID}`,
-            `Name: ${contactGroup.name}`,
-            `Status: ${contactGroup.status}`,
-            contactGroup.contacts
-              ? contactGroup.contacts.map(contact => [
-                  `Contact ID: ${contact.contactID}`,
-                  `Name: ${contact.name}`,
-                ].join('\n')
-              ).join('\n')
-              : "No contacts in this contact group.",            
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        })) || []),
-      ],
-    };
+    return listResponse(response.result);
   },
 );
 
