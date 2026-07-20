@@ -44,7 +44,7 @@ the design's `## Examples` numbers for its test cases.
 
 ## Phase 2 — Report envelope transformer + `reportResponse`
 
-- [ ] **Task 2.1** — `transformReport`: header fields + columns (Header row, empty-title-as-"label", duplicate-title suffixing)
+- [x] **Task 2.1** — `transformReport`: header fields + columns (Header row, empty-title-as-"label", duplicate-title suffixing)
   - File(s): `src/helpers/report-envelope.ts` (new), `src/__tests__/helpers/report-envelope.test.ts` (new)
   - What to do: Create `report-envelope.ts` with a `transformReport(report: ReportWithRow): ReportEnvelope` stub that: extracts `report` from `reportName`, `date` from `reportDate` via `formatDate`, `updatedAt` from `updatedDateUTC` via `formatDateTime`; finds the top-level `ReportRows` with `rowType === "Header"` and builds `columns` from its `cells[].value`, mapping `""` to `"label"` and suffixing duplicate titles `" (2)"`, `" (3)"`, ...; returns `sections: []` (sections themselves are built in later tasks). Define the `ReportEnvelope`/`ReportSection`/`ReportDataRow` types from design.md's Data Model section in this file.
   - Given/When/Then: Given a mock `ReportWithRow` with `reportName: "Trial Balance"`, `reportDate: "20 July 2026"`, and a Header row with cells `["Account", "", "Debit", "Credit"]`, when `transformReport` runs, then it returns `columns: ["Account","label","Debit","Credit"]` and `report: "Trial Balance"`.
@@ -52,6 +52,8 @@ the design's `## Examples` numbers for its test cases.
   - Acceptance: `npm run test -- report-envelope` green for the columns/header cases.
   - Depends on: (none — new file; only depends on Phase 1 being mergeable, not executing before it)
   - Examples: Example 1 (columns portion only; full single-block assertion comes in Task 3.2), Example 16
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
 - [ ] **Task 2.2** — `transformReport`: Section rows, cell-to-column-keyed-object, attribute hoist/dedup
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
