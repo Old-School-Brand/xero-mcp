@@ -247,7 +247,7 @@ ship.
   return reportResponse(response.result);
   ```
   The error branch stays unchanged (text error message).
-  Imports added: `reportResponse` from `json-response.ts`.
+  Imports added: `reportResponse` from `report-envelope.ts`.
   Imports removed: `formatDate`, `formatDateTime`, `formatAgedReportFilter` (as applicable).
 - **Tool descriptions updated** to document the report envelope shape.
 
@@ -478,6 +478,18 @@ is proven correct for those tools.
 - When: `reportResponse(report)` is called
 - Then: returns `{ content: [{ type: "text", text: <minified JSON> }] }` where parsed text has `report: "Balance Sheet"` and `sections: [{"title":"Assets"}]`
 - AC: AC 1, AC 4
+
+**Example 16 -- Duplicate column titles are suffixed, no cell lost**
+- Given: a Header row with cells `["Account", "31 Jul 2026", "31 Jul 2026"]` and a Row with cells `["Sales", "100.00", "90.00"]`
+- When: `transformReport` processes the report
+- Then: `columns` is `["Account","31 Jul 2026","31 Jul 2026 (2)"]` and the row object contains both `"31 Jul 2026":"100.00"` and `"31 Jul 2026 (2)":"90.00"` — no value silently overwritten
+- AC: AC 6
+
+**Example 17 -- Top-level SummaryRow wrapped as synthetic section total**
+- Given: a `ReportWithRow` whose top-level `rows` contain a Header and one `SummaryRow` with cells `["Grand Total", "999.00"]` (not inside any Section)
+- When: `transformReport` processes it
+- Then: `sections` contains one entry whose `total` is `{"label":"Grand Total", …}` and which has no `rows` key; nothing is dropped and no warning is logged
+- AC: AC 6
 
 **Example 15 -- Tool description documents the envelope**
 - Given: `list-trial-balance` tool definition

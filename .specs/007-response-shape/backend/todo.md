@@ -42,9 +42,10 @@ the design's `## Examples` numbers for its test cases.
   - File(s): `src/helpers/report-envelope.ts` (new), `src/__tests__/helpers/report-envelope.test.ts` (new)
   - What to do: Create `report-envelope.ts` with a `transformReport(report: ReportWithRow): ReportEnvelope` stub that: extracts `report` from `reportName`, `date` from `reportDate` via `formatDate`, `updatedAt` from `updatedDateUTC` via `formatDateTime`; finds the top-level `ReportRows` with `rowType === "Header"` and builds `columns` from its `cells[].value`, mapping `""` to `"label"` and suffixing duplicate titles `" (2)"`, `" (3)"`, ...; returns `sections: []` (sections themselves are built in later tasks). Define the `ReportEnvelope`/`ReportSection`/`ReportDataRow` types from design.md's Data Model section in this file.
   - Given/When/Then: Given a mock `ReportWithRow` with `reportName: "Trial Balance"`, `reportDate: "20 July 2026"`, and a Header row with cells `["Account", "", "Debit", "Credit"]`, when `transformReport` runs, then it returns `columns: ["Account","label","Debit","Credit"]` and `report: "Trial Balance"`.
-  - Acceptance: `npm run test -- report-envelope` green for the columns/header case.
+  - Given/When/Then (duplicate titles): Given a Header row with cells `["Account", "31 Jul 2026", "31 Jul 2026"]` and a Row with cells `["Sales", "100.00", "90.00"]`, when `transformReport` runs, then `columns` is `["Account","31 Jul 2026","31 Jul 2026 (2)"]` and the row carries both `"31 Jul 2026":"100.00"` and `"31 Jul 2026 (2)":"90.00"` (no silent overwrite).
+  - Acceptance: `npm run test -- report-envelope` green for the columns/header cases.
   - Depends on: (none — new file; only depends on Phase 1 being mergeable, not executing before it)
-  - Examples: Example 1 (columns portion only; full single-block assertion comes in Task 3.2)
+  - Examples: Example 1 (columns portion only; full single-block assertion comes in Task 3.2), Example 16
 
 - [ ] **Task 2.2** — `transformReport`: Section rows, cell-to-column-keyed-object, attribute hoist/dedup
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
@@ -110,6 +111,14 @@ the design's `## Examples` numbers for its test cases.
   - Acceptance: `npm run test -- report-envelope` green; `npm run build` passes (verifies `ReportEnvelope`/`ReportWithRow` types line up).
   - Depends on: Task 2.1, Task 2.6, Task 2.7
   - Examples: Example 14
+
+- [ ] **Task 2.10** — `transformReport`: top-level `SummaryRow` wrapped as a synthetic section `total`
+  - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
+  - What to do: A top-level row with `rowType === RowType.SummaryRow` (outside any Section — structurally possible, unobserved in the 5 live reports) is wrapped in a synthetic section (`title: ""`) with the row as `total`, so the data is never dropped and no warning fires for a known rowType.
+  - Given/When/Then: Given a `ReportWithRow` whose top-level `rows` contain a Header and one `SummaryRow` with cells `["Grand Total", "999.00"]`, when `transformReport` processes it, then `sections` contains one entry whose `total` has `label: "Grand Total"` and no `rows` key; `console.warn` is not called.
+  - Acceptance: `npm run test -- report-envelope` green.
+  - Depends on: Task 2.5, Task 2.8
+  - Examples: Example 17
 
 ## Phase 3 — Convert the 5 report tools to `reportResponse`
 
