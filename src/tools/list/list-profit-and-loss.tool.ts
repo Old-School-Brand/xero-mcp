@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { listXeroProfitAndLoss } from "../../handlers/list-xero-profit-and-loss.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { reportResponse } from "../../helpers/report-envelope.js";
 
 const ListProfitAndLossTool = CreateXeroTool(
   "list-profit-and-loss",
-  "Lists profit and loss report in Xero. This provides a summary of revenue, expenses, and profit or loss over a specified period of time.",
+  "Lists profit and loss report in Xero. This provides a summary of revenue, expenses, and " +
+    "profit or loss over a specified period of time. Returns a report envelope: " +
+    "{report, date, updatedAt, columns, sections: [{title, rows, total}]}.",
   {
     fromDate: z.string().optional().describe("Optional start date in YYYY-MM-DD format"),
     toDate: z.string().optional().describe("Optional end date in YYYY-MM-DD format"),
@@ -35,28 +37,7 @@ const ListProfitAndLossTool = CreateXeroTool(
       };
     }
 
-    const profitAndLossReport = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-         text: `Profit and Loss Report: ${profitAndLossReport?.reportName ?? "Unnamed"}`,
-       },
-       {
-         type: "text" as const,
-         text: `Date Range: ${formatDate(profitAndLossReport?.reportDate) ?? "Not specified"}`,
-        },
-        {
-          type: "text" as const,
-          text: `Updated At: ${formatDateTime(profitAndLossReport?.updatedDateUTC) ?? "Unknown"}`,
-        },
-        {
-          type: "text" as const,
-          text: JSON.stringify(profitAndLossReport.rows, null, 2),
-        },
-      ],
-    };
+    return reportResponse(response.result);
   },
 );
 

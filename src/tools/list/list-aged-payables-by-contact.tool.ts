@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatAgedReportFilter } from "../../helpers/format-aged-report-filter.js";
-import { formatDate } from "../../helpers/format-date.js";
+import { reportResponse } from "../../helpers/report-envelope.js";
 import { listXeroAgedPayablesByContact } from "../../handlers/list-aged-payables-by-contact.handler.js";
 
 const ListAgedPayablesByContact = CreateXeroTool(
   "list-aged-payables-by-contact",
   `Lists the aged payables in Xero.
-  This shows aged payables for a certain contact up to a report date.`,
+  This shows aged payables for a certain contact up to a report date, optionally
+  filtered to invoices between invoicesFromDate and invoicesToDate.
+  Returns a report envelope: {report, date, updatedAt, columns, sections: [{title, rows, total}]}.`,
   {
     contactId: z.string(),
     reportDate: z.string().optional()
@@ -31,29 +32,7 @@ const ListAgedPayablesByContact = CreateXeroTool(
       };
     }
 
-    const agedPayablesReport = response.result;
-    const filter = formatAgedReportFilter(invoicesFromDate, invoicesToDate);
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Report Name: ${agedPayablesReport.reportName || "Not specified"}`,
-        },
-        {
-          type: "text" as const,
-          text: `Report Date: ${formatDate(agedPayablesReport.reportDate) || "Not specified"}`
-        },
-        {
-          type: "text" as const,
-          text: filter ?? "Showing all relevant invoices"
-        },
-        {
-          type: "text" as const,
-          text: JSON.stringify(agedPayablesReport.rows, null, 2),
-        }
-      ],
-    };
+    return reportResponse(response.result);
   }
 );
 

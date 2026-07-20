@@ -168,36 +168,40 @@ the design's `## Examples` numbers for its test cases.
   - Completed: 2026-07-20
   - Tests: src/__tests__/tools/list-trial-balance.tool.test.ts
 
-- [ ] **Task 3.3** — `list-profit-and-loss.tool.ts`: convert to `reportResponse`, update description
+- [x] **Task 3.3** — `list-profit-and-loss.tool.ts`: convert to `reportResponse`, update description
   - File(s): `src/tools/list/list-profit-and-loss.tool.ts`
   - What to do: Same minimal-diff pattern as Task 3.1 — replace the 4 content blocks with `return reportResponse(profitAndLossReport);`, drop unused `formatDate`/`formatDateTime` imports, add the `reportResponse` import, update the description to document the envelope shape. No new test file (design.md scopes one new tool test to `list-trial-balance`; this tool shares the identical transform path already covered by Phase 2's unit tests plus Task 3.1's integration test — a second near-identical integration test would be redundant per the design's stated test-file list).
   - Given/When/Then: Given the existing manual/build verification, when `npm run build` runs, then it passes with no unused-import lint errors; when the full suite runs, then no existing test for this file (there is none) regresses.
   - Acceptance: `npm run build` and `npm run lint` green; manual smoke check optional (dev instance) per REPO.md's "Verifying a change" guidance.
   - Depends on: Task 2.9
   - Examples: (none — see rationale above; covered structurally by Phase 2 tests)
+  - Completed: 2026-07-20
 
-- [ ] **Task 3.4** — `list-report-balance-sheet.tool.ts`: convert to `reportResponse`, update description
+- [x] **Task 3.4** — `list-report-balance-sheet.tool.ts`: convert to `reportResponse`, update description
   - File(s): `src/tools/list/list-report-balance-sheet.tool.ts`
   - What to do: Same pattern — replace the 2 content blocks (`reportName` prose + pretty-printed rows) with `return reportResponse(balanceSheetReport);`; this tool has no `formatDate`/`formatDateTime` imports to remove. Update description.
   - Given/When/Then: Given `npm run build`, when it runs, then it passes; the tool's success path returns exactly one content block (verified indirectly via Phase 2's `reportResponse` unit tests, which already assert the wrapper's shape).
   - Acceptance: `npm run build` and `npm run lint` green.
   - Depends on: Task 2.9
   - Examples: (none — see Task 3.3 rationale)
+  - Completed: 2026-07-20
 
-- [ ] **Task 3.5** — `list-aged-receivables-by-contact.tool.ts` + `list-aged-payables-by-contact.tool.ts`: convert to `reportResponse`, drop `formatAgedReportFilter`
+- [x] **Task 3.5** — `list-aged-receivables-by-contact.tool.ts` + `list-aged-payables-by-contact.tool.ts`: convert to `reportResponse`, drop `formatAgedReportFilter`
   - File(s): `src/tools/list/list-aged-receivables-by-contact.tool.ts`, `src/tools/list/list-aged-payables-by-contact.tool.ts`
   - What to do: For both tools, replace the 4 content blocks (report name, report date, filter text, pretty-printed rows) with `return reportResponse(report);` on the success path (keep the existing `response.isError` error branch text unchanged). Remove the `formatAgedReportFilter` and `formatDate` imports/calls from both files — the `invoicesFromDate`/`invoicesToDate` filter description moves into the tool's `description` string instead of a runtime prose block. Update both descriptions to document the envelope shape.
   - Given/When/Then: Given `npm run build`, when it runs, then it passes with no unused-import errors (confirms `formatAgedReportFilter` is no longer referenced from either tool file, a precondition for Task 3.6's deletion).
   - Acceptance: `npm run build` and `npm run lint` green.
   - Depends on: Task 2.9
   - Examples: (none — see Task 3.3 rationale; structural coverage from Phase 2)
+  - Completed: 2026-07-20
 
-- [ ] **Task 3.6** — Delete dead code: `format-aged-report-filter.ts`
+- [x] **Task 3.6** — Delete dead code: `format-aged-report-filter.ts`
   - File(s): `src/helpers/format-aged-report-filter.ts` (delete)
   - What to do: `git rm src/helpers/format-aged-report-filter.ts`. Confirm via `grep -rn "format-aged-report-filter" src/` that no import remains (Task 3.5 must land first).
   - Given/When/Then: Given Task 3.5 is complete (both aged-report tool files no longer import `formatAgedReportFilter`), when the file is deleted, then `npm run build` still passes (no dangling import) and `grep -rn "format-aged-report-filter" src/` returns nothing.
   - Acceptance: `npm run build` green; grep returns no matches.
   - Depends on: Task 3.5
+  - Completed: 2026-07-20
 
 ## Phase 4 — `list-accounts` `activeOnly`
 
