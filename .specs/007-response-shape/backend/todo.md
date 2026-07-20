@@ -148,21 +148,25 @@ the design's `## Examples` numbers for its test cases.
 
 ## Phase 3 — Convert the 5 report tools to `reportResponse`
 
-- [ ] **Task 3.1** — `list-trial-balance.tool.ts`: replace 4 content blocks with `reportResponse`, update description
+- [x] **Task 3.1** — `list-trial-balance.tool.ts`: replace 4 content blocks with `reportResponse`, update description
   - File(s): `src/tools/list/list-trial-balance.tool.ts`, `src/__tests__/tools/list-trial-balance.tool.test.ts` (new)
   - What to do: Write the test first (mirroring `list-invoices.tool.test.ts`'s `vi.hoisted` mock pattern): mock `listXeroTrialBalance`, invoke the tool, assert a single content block whose parsed JSON matches the report envelope shape. Then edit the tool: remove the `formatDate`/`formatDateTime`-driven prose blocks and the pretty-printed `JSON.stringify(trialBalanceReport.rows, null, 2)` block; success branch becomes `return reportResponse(trialBalanceReport);` (guard: keep the existing `response.error !== null` error branch's text output unchanged). Remove now-unused `formatDate`/`formatDateTime` imports; add `import { reportResponse } from "../../helpers/report-envelope.js";`. Update the tool's `description` string to mention the report envelope shape (`report`, `date`, `updatedAt`, `columns`, `sections`).
   - Given/When/Then: Given a mock `ReportWithRow` with `reportName: "Trial Balance"`, `reportDate: "20 July 2026"`, one Header row with cells `["Account", "", "Debit", "Credit"]`, one Section "Revenue" with one Row, when `list-trial-balance` tool is called, then the response has exactly 1 content block, its text starts with `{"report":"Trial Balance"` and contains no `\n` characters, and `columns` is `["Account","label","Debit","Credit"]`.
   - Acceptance: New test green; `npm run test` full suite green; `npm run build` green.
   - Depends on: Task 2.9
   - Examples: Example 1
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/tools/list-trial-balance.tool.test.ts
 
-- [ ] **Task 3.2** — Tool description documents the envelope shape (dedicated assertion)
+- [x] **Task 3.2** — Tool description documents the envelope shape (dedicated assertion)
   - File(s): `src/__tests__/tools/list-trial-balance.tool.test.ts`
   - What to do: Add a assertion-only test case (no production change beyond what Task 3.1 already wrote) inspecting `ListTrialBalanceTool().description` for envelope-shape language (mentions of `sections`/`columns`).
   - Given/When/Then: Given the `list-trial-balance` tool definition, when its `description` string is inspected, then it mentions the report envelope shape (`sections`, `columns`).
   - Acceptance: `npm run test -- list-trial-balance` green.
   - Depends on: Task 3.1
   - Examples: Example 15
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/tools/list-trial-balance.tool.test.ts
 
 - [ ] **Task 3.3** — `list-profit-and-loss.tool.ts`: convert to `reportResponse`, update description
   - File(s): `src/tools/list/list-profit-and-loss.tool.ts`
