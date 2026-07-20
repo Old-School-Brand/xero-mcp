@@ -55,29 +55,35 @@ the design's `## Examples` numbers for its test cases.
   - Completed: 2026-07-20
   - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.2** — `transformReport`: Section rows, cell-to-column-keyed-object, attribute hoist/dedup
+- [x] **Task 2.2** — `transformReport`: Section rows, cell-to-column-keyed-object, attribute hoist/dedup
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Walk top-level `Section` rows' nested `rows`. For each `rowType === "Row"`, build a `ReportDataRow` keyed by column title (index-aligned to `columns`), skipping cells with empty/missing `value`. Collect every cell's non-empty `ReportAttribute`s into one deduplicated `attributes: {id: value}` object per row (first-wins on `id` collision), attached only when non-empty.
   - Given/When/Then: Given a Row with 5 cells — cell 0 has `attributes: [{id:"account", value:"0aa0e7a2-xxx"}]`; cells 1-4 each have `[{id:"account", value:"0aa0e7a2-xxx"}, {id:"toDate", value:"2/28/2026"}]`; cells 2-4 also have `{id:"fromDate", value:""}` — when `transformReport` processes the row, then it has exactly one `attributes` object equal to `{"account":"0aa0e7a2-xxx","toDate":"2/28/2026"}` and no `fromDate` key.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.1
   - Examples: Example 5
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.3** — `transformReport`: attribute id collision is first-wins
+- [x] **Task 2.3** — `transformReport`: attribute id collision is first-wins
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Verify (or adjust) the dedup logic from Task 2.2 so that when two cells in the same row carry the same attribute `id` with different `value`s, the first cell processed wins.
   - Given/When/Then: Given a Row with 2 cells — cell 0 has `{id:"account", value:"aaa"}`, cell 1 has `{id:"account", value:"bbb"}` — when `transformReport` processes the row, then `attributes.account` is `"aaa"`.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.2
   - Examples: Example 9
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.4** — `transformReport`: verbatim cell values, no numeric coercion
+- [x] **Task 2.4** — `transformReport`: verbatim cell values, no numeric coercion
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Assert (no production code change expected beyond what Task 2.2 already does — this task exists to lock the "never parse" contract with an explicit regression test) that cell values pass through as strings untouched.
   - Given/When/Then: Given a Row where cell 0 (column "Account") has value `"123"` and cell 1 (column "Debit") has value `"0.00"`, when `transformReport` processes the row, then the row object contains `"Account":"123"` and `"Debit":"0.00"` as strings.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.2
   - Examples: Example 13
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
 - [ ] **Task 2.5** — `transformReport`: `SummaryRow` becomes the section's `total`
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`

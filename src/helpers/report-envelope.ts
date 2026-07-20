@@ -40,15 +40,26 @@ function buildColumns(report: ReportWithRow): string[] {
 // the index itself if a report has no Header row). Cells with an empty or
 // missing value are skipped — the jsonResponse replacer would drop them
 // anyway, but skipping here avoids ever creating the key in the first place.
+// Every cell's attributes are hoisted into one deduplicated `attributes`
+// object per row (first-wins on id collision), since the same account GUID
+// is otherwise repeated on every cell in the row.
 function cellsToRow(cells: ReportCell[] | undefined, columns: string[]): ReportDataRow {
   const row: ReportDataRow = {};
+  const attributes: Record<string, string> = {};
 
   (cells ?? []).forEach((cell, index) => {
-    if (!cell.value) return;
-    const key = columns[index] ?? String(index);
-    row[key] = cell.value;
+    if (cell.value) {
+      const key = columns[index] ?? String(index);
+      row[key] = cell.value;
+    }
+    for (const attribute of cell.attributes ?? []) {
+      if (attribute.id && attribute.value && !(attribute.id in attributes)) {
+        attributes[attribute.id] = attribute.value;
+      }
+    }
   });
 
+  if (Object.keys(attributes).length > 0) row.attributes = attributes;
   return row;
 }
 
