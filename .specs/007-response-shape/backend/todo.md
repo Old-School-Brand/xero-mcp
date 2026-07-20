@@ -1,7 +1,7 @@
 # Todo: 007-response-shape
 
 **Layer:** backend
-**Status:** In Progress
+**Status:** Ready for Review
 **Last updated:** 2026-07-20
 
 Ordered, file-level, full-tdd (test first per task, then implement to green). Each task references
@@ -226,33 +226,37 @@ the design's `## Examples` numbers for its test cases.
 
 ## Phase 5 — Bookkeeping
 
-- [ ] **Task 5.1** — REPO.md: add the feature-007 upstream-isolation exception note
+- [x] **Task 5.1** — REPO.md: add the feature-007 upstream-isolation exception note
   - File(s): `.specs/REPO.md`
   - What to do: Append a new "Known exception (feature 007-response-shape)" paragraph to the Upstream Sync section, following the exact style of the existing 004/005/006 exception notes: name the modified upstream-owned files (5 report tool files, `list-xero-accounts.handler.ts`, `list-accounts.tool.ts`), the new fork-owned file (`report-envelope.ts`), and the deleted file (`format-aged-report-filter.ts`). State that `git diff upstream/main -- src/ ':!src/http'` remains non-empty for this additional, named reason on top of 004/005/006's.
   - Given/When/Then: Given the REPO.md Upstream Sync section, when read after this task, then it lists a feature-007 exception paragraph in the same format and position (chronologically after 006's) as the existing three.
   - Acceptance: Manual read-through matches the style of the 004/005/006 paragraphs; no other REPO.md content altered.
   - Depends on: Phase 3 and Phase 4 complete (so the file list in the note is accurate)
+  - Completed: 2026-07-21
 
-- [ ] **Task 5.2** — Flip ADR-0006 status to `Accepted`
+- [x] **Task 5.2** — Flip ADR-0006 status to `Accepted`
   - File(s): `.specs/adr/0006-report-envelope-and-empty-value-omission.md`
   - What to do: Change the `| Status | Draft |` row to `| Status | Accepted |` now that the design is implemented and tests are green. No other content changes (the Decision/Consequences sections were already written accurately in the design phase).
   - Given/When/Then: Given the ADR-0006 file, when its Status field is read after this task, then it reads `Accepted`.
   - Acceptance: Diff is a single-line status change.
   - Depends on: Phase 3, Phase 4 complete and full suite green
+  - Completed: 2026-07-21
 
-- [ ] **Task 5.3** — Update `.specs/backlog/response-size-and-502-stability.md`: mark items 2-4 delivered
+- [x] **Task 5.3** — Update `.specs/backlog/response-size-and-502-stability.md`: mark items 2-4 delivered
   - File(s): `.specs/backlog/response-size-and-502-stability.md`
   - What to do: In the "Post-v0.3.0 tester feedback" section, annotate the "Envelope inconsistency" and "Trial balance bloat" bullets (items 2-3 in that list) and the `list-accounts` `activeOnly` half of item 4 as **delivered by 007-response-shape** (report envelope + attribute dedup + empty-value omission + `activeOnly` default), leaving the field-trimming/`fields`-param request explicitly out of scope (per this feature's Non-Goals) and the infra 502/OOM diagnostics + `list-items` 9 MB pagination strategy as remaining open scope for this backlog item.
   - Given/When/Then: Given the backlog file, when read after this task, then the delivered sub-items are marked resolved with a pointer to 007, and the remaining infra/pagination scope is unchanged and still legible as open.
   - Acceptance: Manual read-through; no remaining-scope content deleted, only the delivered portions annotated.
   - Depends on: Task 5.1
+  - Completed: 2026-07-21
 
-- [ ] **Task 5.4** — Full verification sweep
+- [x] **Task 5.4** — Full verification sweep
   - File(s): (none — verification only)
   - What to do: Run the full test suite, build, and lint from repo root.
   - Given/When/Then: Given all Phase 1-4 tasks complete, when `npm run test`, `npm run build`, and `npm run lint` are run, then all three exit 0 with no regressions in `json-response.test.ts`, `list-invoices.tool.test.ts`, `list-organisation-details` coverage, `xero-client.test.ts`, or the `http/` suite.
   - Acceptance: All three commands green; `grep -rn "format-aged-report-filter" src/` still returns nothing.
   - Depends on: Task 5.3
+  - Completed: 2026-07-21
 
 ## Out of Scope
 - **Field trimming / a `fields` param on `list-accounts` or `list-items`** — explicit Non-Goal in requirements.md; belongs to `.specs/backlog/response-size-and-502-stability.md`'s remaining scope if ever picked up.

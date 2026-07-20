@@ -2,7 +2,7 @@
 
 | Field       | Value                                                                    |
 |-------------|--------------------------------------------------------------------------|
-| Status      | Draft                                                                    |
+| Status      | Accepted                                                                 |
 | Date        | 2026-07-20                                                               |
 | Decided by  | Llewellyn Strydom (CTO)                                                  |
 | Source      | `.specs/007-response-shape/backend/requirements.md`, `design.md`         |

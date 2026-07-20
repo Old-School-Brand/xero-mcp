@@ -145,16 +145,16 @@ ARCHIVED), items 9.0 MB / 21,240 rows.
   - When: serialized
   - Then: `quantityOnHand` and `purchaseDescription` keys are absent; `"isTrackedAsInventory":false` is present; every populated field is unchanged
 
-- [ ] ADR-0006 records the report envelope + empty-omission as the successor/refinement of
+- [x] ADR-0006 records the report envelope + empty-omission as the successor/refinement of
       ADR-0005's raw-passthrough contract (raw passthrough stays for list rows; reports get a
       lossless structured envelope).
-- [ ] REPO.md upstream-isolation section gains the feature-007 exception note (report tool files +
+- [x] REPO.md upstream-isolation section gains the feature-007 exception note (report tool files +
       accounts handler/tool are upstream-owned).
-- [ ] `.specs/backlog/aged-reports-live-failure.md` created with the 2026-07-20 evidence (all
+- [x] `.specs/backlog/aged-reports-live-failure.md` created with the 2026-07-20 evidence (all
       contacts error; `formatError` fallback = unrecognized SDK error shape; not a 403/plan gate).
-- [ ] `.specs/backlog/response-size-and-502-stability.md` updated: items 2–4 delivered by 007;
+- [x] `.specs/backlog/response-size-and-502-stability.md` updated: items 2–4 delivered by 007;
       remaining scope (infra 502s, list-items 9 MB pagination strategy) stays.
-- [ ] Shipped as a minor version bump (output contract change, like 006 → v0.3.0).
+- [x] Shipped as a minor version bump (output contract change, like 006 → v0.3.0).
 
 ## Dependencies
 
