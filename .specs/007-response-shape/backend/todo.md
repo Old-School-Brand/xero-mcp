@@ -205,14 +205,15 @@ the design's `## Examples` numbers for its test cases.
 
 ## Phase 4 — `list-accounts` `activeOnly`
 
-- [ ] **Task 4.1** — Handler: `listXeroAccounts` accepts optional `where`, passes it to `getAccounts`
+- [x] **Task 4.1** — Handler: `listXeroAccounts` accepts optional `where`, passes it to `getAccounts`
   - File(s): `src/handlers/list-xero-accounts.handler.ts`
   - What to do: Add `where?: string` parameter to the internal `listAccounts` function and to the exported `listXeroAccounts`, threading it through as the 3rd positional argument to `xeroClient.accountingApi.getAccounts(xeroTenantId, ifModifiedSince, where, order, options)` in place of the current hardcoded `undefined`. No test file for this handler alone — its behaviour is asserted end-to-end via the tool test in Task 4.2 (mirrors how `listXeroInvoices`'s params are tested via `list-invoices.tool.test.ts`, not a standalone handler test).
   - Given/When/Then: Given `listXeroAccounts('Status=="ACTIVE"')` is called, when the underlying `getAccounts` mock is inspected, then it was invoked with `'Status=="ACTIVE"'` as the 3rd argument; given `listXeroAccounts()` (no arg), when inspected, then the 3rd argument is `undefined`.
   - Acceptance: Verified via Task 4.2's tool-level test (this task's own verification is `npm run build` passing with the new optional param — no behavioural test until Task 4.2, since the tool test exercises the full path with a mocked handler, not a mocked Xero SDK call).
   - Depends on: (none)
+  - Completed: 2026-07-20
 
-- [ ] **Task 4.2** — Tool: `activeOnly` param (default `true`) drives the `where` clause; new `list-accounts.tool.test.ts`
+- [x] **Task 4.2** — Tool: `activeOnly` param (default `true`) drives the `where` clause; new `list-accounts.tool.test.ts`
   - File(s): `src/tools/list/list-accounts.tool.ts`, `src/__tests__/tools/list-accounts.tool.test.ts` (new)
   - What to do: Write the test first — `vi.hoisted` mock of `listXeroAccounts` capturing its `where` argument, mirroring `list-invoices.tool.test.ts`'s pattern. Case A: call the tool with no args, assert the mock was called with `where: 'Status=="ACTIVE"'`. Case B: call with `{ activeOnly: false }`, assert the mock was called with `where: undefined`. Then implement: add `activeOnly: z.boolean().optional().default(true)` to the tool's zod schema; in the handler function, compute `const where = activeOnly !== false ? 'Status=="ACTIVE"' : undefined;` and call `listXeroAccounts(where)`; update the tool description to state the `activeOnly` default and its effect.
   - Given/When/Then (default): Given a mock `listXeroAccounts` capturing its `where` argument, when `list-accounts` tool is called with no arguments, then the handler was called with `where: 'Status=="ACTIVE"'`.
@@ -220,6 +221,8 @@ the design's `## Examples` numbers for its test cases.
   - Acceptance: Both new tests green; `npm run test` full suite green; `npm run build` green.
   - Depends on: Task 4.1
   - Examples: Example 10, Example 11
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/tools/list-accounts.tool.test.ts
 
 ## Phase 5 — Bookkeeping
 

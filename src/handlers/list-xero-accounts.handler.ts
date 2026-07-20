@@ -4,13 +4,13 @@ import { formatError } from "../helpers/format-error.js";
 import { Account } from "xero-node";
 import { getClientHeaders } from "../helpers/get-client-headers.js";
 
-async function listAccounts(): Promise<Account[]> {
+async function listAccounts(where?: string): Promise<Account[]> {
   await xeroClient.authenticate();
 
   const response = await xeroClient.accountingApi.getAccounts(
     xeroClient.tenantId,
     undefined, // ifModifiedSince
-    undefined, // where
+    where,
     undefined, // order
     getClientHeaders(),
   );
@@ -21,12 +21,13 @@ async function listAccounts(): Promise<Account[]> {
 
 /**
  * List all accounts from Xero
+ * @param where Optional Xero API `where` filter clause, e.g. `Status=="ACTIVE"`
  */
-export async function listXeroAccounts(): Promise<
-  XeroClientResponse<Account[]>
-> {
+export async function listXeroAccounts(
+  where?: string,
+): Promise<XeroClientResponse<Account[]>> {
   try {
-    const accounts = await listAccounts();
+    const accounts = await listAccounts(where);
 
     return {
       result: accounts,
