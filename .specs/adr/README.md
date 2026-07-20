@@ -35,3 +35,5 @@ Supersession is first-class: an ADR can only be superseded by another ADR, never
 | [0002](0002-mcp-http-transport-and-oauth.md) | MCP HTTP transport and OAuth model | Accepted |
 | [0003](0003-oauth-state-in-redis.md) | OAuth state persistence in Redis | Accepted |
 | [0004](0004-oauth-proxy-bridge.md) | OAuth-proxy bridge replaces dumb-forward proxy | Accepted |
+| [0005](0005-raw-json-output-contract.md) | Read tools emit raw JSON passthrough | Accepted |
+| [0006](0006-report-envelope-and-empty-value-omission.md) | Report envelope and empty-value omission | Draft |
