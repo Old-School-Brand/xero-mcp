@@ -15,6 +15,19 @@ Test plan:
   - test_listResponse_hasMoreTrue_whenRowsLengthEqualsPageSize: full page sets hasMore true
   - test_listResponse_hasMoreFalse_whenRowsLengthBelowPageSize: partial page sets hasMore false
   - test_listResponse_hasMoreAbsent_whenNoPageSizeGiven: omitting pageSize omits hasMore entirely
+
+Task: 1.1, 1.2, 1.3 — empty-value omission
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 2: Empty-value omission drops padding cells (AC 2)
+  - Example 3: Zero and false survive omission (AC 2, AC 7)
+  - Example 4: Null omitted, undefined omitted (AC 7)
+
+Test plan:
+  - test_emptyStringValues_areOmitted: "" values are dropped, populated siblings survive
+  - test_zeroAndFalseValues_survive: 0 and false are never dropped by the empty-value guard
+  - test_nullValues_areOmitted: null values are dropped alongside ""
 */
 import { describe, it, expect } from "vitest";
 import { jsonResponse, listResponse } from "../../helpers/json-response.js";
@@ -43,6 +56,31 @@ describe("jsonResponse", () => {
       name: "Org",
       nested: { paysTax: false },
     });
+  });
+
+  it("test_emptyStringValues_areOmitted", () => {
+    const value = { Account: "Sales (200)", Debit: "", Credit: "5000.00", YTDDebit: "" };
+
+    expect(parse(jsonResponse(value))).toEqual({
+      Account: "Sales (200)",
+      Credit: "5000.00",
+    });
+  });
+
+  it("test_zeroAndFalseValues_survive", () => {
+    const value = { name: "Petty Cash", balance: 0, hasAttachments: false, code: "" };
+
+    expect(parse(jsonResponse(value))).toEqual({
+      name: "Petty Cash",
+      balance: 0,
+      hasAttachments: false,
+    });
+  });
+
+  it("test_nullValues_areOmitted", () => {
+    const value = { name: "Widget", quantityOnHand: null, purchaseDescription: "" };
+
+    expect(parse(jsonResponse(value))).toEqual({ name: "Widget" });
   });
 });
 

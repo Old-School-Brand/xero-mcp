@@ -1,7 +1,7 @@
 # Todo: 007-response-shape
 
 **Layer:** backend
-**Status:** Pending
+**Status:** In Progress
 **Last updated:** 2026-07-20
 
 Ordered, file-level, full-tdd (test first per task, then implement to green). Each task references
@@ -9,7 +9,7 @@ the design's `## Examples` numbers for its test cases.
 
 ## Phase 1 — Foundation: empty-value omission in `json-response.ts`
 
-- [ ] **Task 1.1** — Extend the `jsonResponse` replacer to drop `""`/`null`, keep `0`/`false`
+- [x] **Task 1.1** — Extend the `jsonResponse` replacer to drop `""`/`null`, keep `0`/`false`
   - File(s): `src/helpers/json-response.ts`, `src/__tests__/helpers/json-response.test.ts`
   - What to do: In the replacer function passed to `JSON.stringify` inside `jsonResponse`, add
     `if (v === "" || v === null) return undefined;` ahead of/alongside the existing
@@ -19,22 +19,28 @@ the design's `## Examples` numbers for its test cases.
   - Acceptance: New test cases pass; `npm run test -- json-response` green; no existing `json-response.test.ts` case regresses.
   - Depends on: (none)
   - Examples: Example 2, Example 4
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/json-response.test.ts
 
-- [ ] **Task 1.2** — Assert `0`/`false` survive omission
+- [x] **Task 1.2** — Assert `0`/`false` survive omission
   - File(s): `src/__tests__/helpers/json-response.test.ts`
   - What to do: Add a case serializing `{ name: "Petty Cash", balance: 0, hasAttachments: false, code: "" }` and asserting the parsed result equals `{ name: "Petty Cash", balance: 0, hasAttachments: false }` (falls out of the same replacer change as Task 1.1; kept as its own task because it is a separate Given/When/Then and a distinct regression risk — a naive `!v` check would wrongly drop `0`/`false`).
   - Given/When/Then: Given `{ name: "Petty Cash", balance: 0, hasAttachments: false, code: "" }`, when serialized through `jsonResponse`, then the result equals `{ name: "Petty Cash", balance: 0, hasAttachments: false }`.
   - Acceptance: `npm run test -- json-response` green.
   - Depends on: Task 1.1
   - Examples: Example 3
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/json-response.test.ts
 
-- [ ] **Task 1.3** — Assert `null` and empty-string are both omitted (items-shaped fixture)
+- [x] **Task 1.3** — Assert `null` and empty-string are both omitted (items-shaped fixture)
   - File(s): `src/__tests__/helpers/json-response.test.ts`
   - What to do: Add a case serializing `{ name: "Widget", quantityOnHand: null, purchaseDescription: "" }` and asserting the parsed result equals `{ name: "Widget" }`.
   - Given/When/Then: Given `{ name: "Widget", quantityOnHand: null, purchaseDescription: "" }`, when serialized through `jsonResponse`, then the result equals `{ name: "Widget" }`.
   - Acceptance: `npm run test -- json-response` green.
   - Depends on: Task 1.1
   - Examples: Example 4
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/json-response.test.ts
 
 ## Phase 2 — Report envelope transformer + `reportResponse`
 
