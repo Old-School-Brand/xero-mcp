@@ -41,9 +41,9 @@ Test plan:
   - test_cellValues_remainVerbatimStrings_neverCoerced: numeric-looking cell values
     ("123", "0.00") stay strings, untouched
 */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { RowType, type ReportWithRow, type ReportAttribute } from "xero-node";
-import { transformReport } from "../../helpers/report-envelope.js";
+import { transformReport, reportResponse } from "../../helpers/report-envelope.js";
 
 function cell(value?: string, attributes?: ReportAttribute[]) {
   return { value, attributes };
@@ -206,5 +206,215 @@ describe("transformReport — verbatim cell values", () => {
     const envelope = transformReport(report);
 
     expect(envelope.sections[0].rows?.[0]).toEqual({ Account: "123", Debit: "0.00" });
+  });
+});
+
+/*
+Task: 2.5 — transformReport: SummaryRow becomes the section's total
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 6: Section total from SummaryRow (AC 4)
+
+Test plan:
+  - test_summaryRowInSection_becomesSectionTotal_notInRows: a section's SummaryRow is
+    stored as `total`, not appended to `rows`
+
+Task: 2.6 — transformReport: label-only sections and computed rows in empty-title sections
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 7: Label-only section preserved (AC 4)
+  - Example 8: Computed row stays as ordinary row (AC 4)
+
+Test plan:
+  - test_sectionWithNoRows_serializesAsTitleOnly: a Section with no nested rows produces
+    { title } only
+  - test_computedRowInEmptyTitleSection_staysInRows: a Section titled "" containing an
+    ordinary Row keeps that row in `rows`, not `total`
+
+Task: 2.7 — transformReport: empty report (Section present, zero data rows)
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 12: Report with no data rows (empty report) (AC 6)
+
+Test plan:
+  - test_sectionWithEmptyRowsArray_omitsRowsKey: a Section whose Xero `rows` is `[]`
+    produces no `rows` key in the envelope
+
+Task: 2.8 — Unknown rowType at top level and nested: console.warn + skip
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - (none numbered in design.md — covers the Error Handling table's "Unknown rowType" row)
+
+Test plan:
+  - test_unknownTopLevelRowType_skippedWithWarning_noThrow: an unrecognised top-level
+    rowType is skipped, console.warn fires once, no exception is thrown
+
+Task: 2.9 — reportResponse(report) composes transformReport + jsonResponse
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 14: reportResponse composes transform + serialize (AC 1, AC 4)
+
+Test plan:
+  - test_reportResponse_returnsSingleMinifiedContentBlock: wraps transformReport's output
+    as one minified JSON text content block
+
+Task: 2.10 — transformReport: top-level SummaryRow wrapped as a synthetic section total
+Source: .specs/007-response-shape/backend/todo.md
+
+Examples covered:
+  - Example 17: Top-level SummaryRow wrapped as synthetic section total (AC 6)
+
+Test plan:
+  - test_topLevelSummaryRow_wrappedAsSyntheticSectionTotal_noWarning: a top-level
+    SummaryRow (no owning Section) becomes a section with only a `total`; no warning fires
+*/
+describe("transformReport — SummaryRow becomes section total", () => {
+  it("test_summaryRowInSection_becomesSectionTotal_notInRows", () => {
+    const report: ReportWithRow = {
+      reportName: "Balance Sheet",
+      rows: [
+        {
+          rowType: RowType.Header,
+          cells: [cell(""), cell("Amount")],
+        },
+        {
+          rowType: RowType.Section,
+          title: "Bank",
+          rows: [
+            { rowType: RowType.Row, cells: [cell("Business Account"), cell("5000.00")] },
+            { rowType: RowType.SummaryRow, cells: [cell("Total Bank"), cell("10000.00")] },
+          ],
+        },
+      ],
+    };
+
+    const envelope = transformReport(report);
+
+    expect(envelope.sections[0].total).toEqual({ label: "Total Bank", Amount: "10000.00" });
+    expect(envelope.sections[0].rows).toEqual([{ label: "Business Account", Amount: "5000.00" }]);
+  });
+});
+
+describe("transformReport — label-only sections and computed rows", () => {
+  it("test_sectionWithNoRows_serializesAsTitleOnly", () => {
+    const report: ReportWithRow = {
+      reportName: "Balance Sheet",
+      rows: [
+        { rowType: RowType.Header, cells: [cell("Account"), cell("Amount")] },
+        { rowType: RowType.Section, title: "Assets" },
+      ],
+    };
+
+    const envelope = transformReport(report);
+
+    expect(envelope.sections[0]).toEqual({ title: "Assets" });
+  });
+
+  it("test_computedRowInEmptyTitleSection_staysInRows", () => {
+    const report: ReportWithRow = {
+      reportName: "Balance Sheet",
+      rows: [
+        { rowType: RowType.Header, cells: [cell(""), cell("Amount")] },
+        {
+          rowType: RowType.Section,
+          title: "",
+          rows: [{ rowType: RowType.Row, cells: [cell("Net Assets"), cell("500000.00")] }],
+        },
+      ],
+    };
+
+    const envelope = transformReport(report);
+
+    expect(envelope.sections[0]).toEqual({
+      title: "",
+      rows: [{ label: "Net Assets", Amount: "500000.00" }],
+    });
+  });
+});
+
+describe("transformReport — empty report", () => {
+  it("test_sectionWithEmptyRowsArray_omitsRowsKey", () => {
+    const report: ReportWithRow = {
+      reportName: "Profit and Loss",
+      rows: [
+        { rowType: RowType.Header, cells: [cell("Account"), cell("Amount")] },
+        { rowType: RowType.Section, title: "Revenue", rows: [] },
+      ],
+    };
+
+    const envelope = transformReport(report);
+
+    expect(envelope.sections).toEqual([{ title: "Revenue" }]);
+  });
+});
+
+describe("transformReport — unknown rowType", () => {
+  it("test_unknownTopLevelRowType_skippedWithWarning_noThrow", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const report: ReportWithRow = {
+      reportName: "Trial Balance",
+      rows: [
+        { rowType: RowType.Header, cells: [cell("Account")] },
+        { rowType: "Weird" as unknown as RowType, title: "Unrecognised" },
+      ],
+    };
+
+    expect(() => transformReport(report)).not.toThrow();
+    const envelope = transformReport(report);
+
+    expect(envelope.sections).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+});
+
+describe("reportResponse", () => {
+  it("test_reportResponse_returnsSingleMinifiedContentBlock", () => {
+    const report: ReportWithRow = {
+      reportName: "Balance Sheet",
+      rows: [
+        { rowType: RowType.Header, cells: [cell("Account"), cell("Amount")] },
+        { rowType: RowType.Section, title: "Assets" },
+      ],
+    };
+
+    const result = reportResponse(report);
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].text).not.toContain("\n");
+    const parsed = JSON.parse(result.content[0].text) as {
+      report: string;
+      sections: unknown[];
+    };
+    expect(parsed.report).toBe("Balance Sheet");
+    expect(parsed.sections).toEqual([{ title: "Assets" }]);
+  });
+});
+
+describe("transformReport — top-level SummaryRow", () => {
+  it("test_topLevelSummaryRow_wrappedAsSyntheticSectionTotal_noWarning", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const report: ReportWithRow = {
+      reportName: "Trial Balance",
+      rows: [
+        { rowType: RowType.Header, cells: [cell(""), cell("Amount")] },
+        { rowType: RowType.SummaryRow, cells: [cell("Grand Total"), cell("999.00")] },
+      ],
+    };
+
+    const envelope = transformReport(report);
+
+    expect(envelope.sections).toEqual([{ title: "", total: { label: "Grand Total", Amount: "999.00" } }]);
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });

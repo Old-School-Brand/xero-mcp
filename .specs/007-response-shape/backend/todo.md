@@ -85,15 +85,17 @@ the design's `## Examples` numbers for its test cases.
   - Completed: 2026-07-20
   - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.5** — `transformReport`: `SummaryRow` becomes the section's `total`
+- [x] **Task 2.5** — `transformReport`: `SummaryRow` becomes the section's `total`
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: In the Section-walking logic, route nested rows with `rowType === "SummaryRow"` to the section's `total` (same cell-to-object transform as Task 2.2) instead of appending to `rows`.
   - Given/When/Then: Given a Section "Bank" with one Row and one SummaryRow (cells `["Total Bank", "10000.00"]`, empty-title first column), when `transformReport` processes the section, then the section has `total` with `label: "Total Bank"` and `total` is not present in `rows`.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.2
   - Examples: Example 6
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.6** — `transformReport`: label-only sections and computed rows in empty-title sections
+- [x] **Task 2.6** — `transformReport`: label-only sections and computed rows in empty-title sections
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Ensure a `Section` with no nested data rows produces `{ title }` only (no `rows`/`total` keys ever set — do not default to `[]`/`{}`), and that a `Section` with `title: ""` containing an ordinary Row (e.g. "Net Assets") serializes with the row inside `rows`, not as `total`, and no `title` key (the empty string is dropped by the Phase 1 replacer, not by the transformer).
   - Given/When/Then (label-only): Given a Section with `title: "Assets"` and no nested `rows`, when `transformReport` processes it, then the section appears as `{"title":"Assets"}` (no `rows` key, no `total` key).
@@ -101,38 +103,48 @@ the design's `## Examples` numbers for its test cases.
   - Acceptance: `npm run test -- report-envelope` green; both cases covered in the same task (same code path, same file).
   - Depends on: Task 2.2, Task 2.5
   - Examples: Example 7, Example 8
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.7** — `transformReport`: empty report (Section present, zero data rows)
+- [x] **Task 2.7** — `transformReport`: empty report (Section present, zero data rows)
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Confirm a `Section` with `title: "Revenue"` and `rows: []` (present-but-empty array on the Xero side) produces `{"title":"Revenue"}` with no `rows` key in the envelope (the transformer omits the key rather than emitting `"rows":[]`).
   - Given/When/Then: Given a `ReportWithRow` with a Header row and one Section `title: "Revenue"`, `rows: []`, when `transformReport` processes it, then `sections` is `[{"title":"Revenue"}]`.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.6
   - Examples: Example 12
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.8** — Unknown `rowType` at top level and nested: `console.warn` + skip
+- [x] **Task 2.8** — Unknown `rowType` at top level and nested: `console.warn` + skip
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Add the fail-loud-but-non-crashing guard from design.md's Error Handling table: a top-level or nested row with an unrecognised `rowType` (not `Header`/`Section`/`Row`/`SummaryRow`) is skipped and logged via `console.warn`, not thrown.
   - Given/When/Then: Given a `ReportWithRow` whose top-level `rows` includes one entry with an unrecognised `rowType`, when `transformReport` processes it, then that entry is absent from `sections`, `console.warn` was called once, and no exception is thrown.
   - Acceptance: `npm run test -- report-envelope` green (spy on `console.warn`).
   - Depends on: Task 2.1
   - Examples: (none numbered in design.md — covers the Error Handling table's "Unknown rowType" row; include for completeness per design.md §Error Handling & Edge Cases)
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.9** — `reportResponse(report)` composes `transformReport` + `jsonResponse`
+- [x] **Task 2.9** — `reportResponse(report)` composes `transformReport` + `jsonResponse`
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: Add `export function reportResponse(report: ReportWithRow) { return jsonResponse(transformReport(report)); }`, importing `jsonResponse` from `./json-response.js`.
   - Given/When/Then: Given a minimal `ReportWithRow` with `reportName: "Balance Sheet"`, a Header row, and one empty Section `"Assets"`, when `reportResponse(report)` is called, then it returns `{ content: [{ type: "text", text: <minified JSON> }] }` where the parsed text has `report: "Balance Sheet"` and `sections: [{"title":"Assets"}]`.
   - Acceptance: `npm run test -- report-envelope` green; `npm run build` passes (verifies `ReportEnvelope`/`ReportWithRow` types line up).
   - Depends on: Task 2.1, Task 2.6, Task 2.7
   - Examples: Example 14
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
-- [ ] **Task 2.10** — `transformReport`: top-level `SummaryRow` wrapped as a synthetic section `total`
+- [x] **Task 2.10** — `transformReport`: top-level `SummaryRow` wrapped as a synthetic section `total`
   - File(s): `src/helpers/report-envelope.ts`, `src/__tests__/helpers/report-envelope.test.ts`
   - What to do: A top-level row with `rowType === RowType.SummaryRow` (outside any Section — structurally possible, unobserved in the 5 live reports) is wrapped in a synthetic section (`title: ""`) with the row as `total`, so the data is never dropped and no warning fires for a known rowType.
   - Given/When/Then: Given a `ReportWithRow` whose top-level `rows` contain a Header and one `SummaryRow` with cells `["Grand Total", "999.00"]`, when `transformReport` processes it, then `sections` contains one entry whose `total` has `label: "Grand Total"` and no `rows` key; `console.warn` is not called.
   - Acceptance: `npm run test -- report-envelope` green.
   - Depends on: Task 2.5, Task 2.8
   - Examples: Example 17
+  - Completed: 2026-07-20
+  - Tests: src/__tests__/helpers/report-envelope.test.ts
 
 ## Phase 3 — Convert the 5 report tools to `reportResponse`
 

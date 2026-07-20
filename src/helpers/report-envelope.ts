@@ -1,5 +1,6 @@
 import { RowType, type ReportWithRow, type ReportCell, type ReportRows } from "xero-node";
 import { formatDate, formatDateTime } from "./format-date.js";
+import { jsonResponse } from "./json-response.js";
 
 /** The structured, lossless JSON shape report tools return (ADR-0006). */
 export interface ReportEnvelope {
@@ -113,4 +114,9 @@ export function transformReport(report: ReportWithRow): ReportEnvelope {
     columns,
     sections,
   };
+}
+
+/** Composes transformReport + jsonResponse into the report tools' single call. */
+export function reportResponse(report: ReportWithRow) {
+  return jsonResponse(transformReport(report));
 }
