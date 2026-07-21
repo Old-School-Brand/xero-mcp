@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { listXeroReportBalanceSheet } from "../../handlers/list-xero-report-balance-sheet.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
+import { reportResponse } from "../../helpers/report-envelope.js";
 import { ListReportBalanceSheetParams } from "../../types/list-report-balance-sheet-params.js";
 
 const ListReportBalanceSheetTool = CreateXeroTool(
   "list-report-balance-sheet",
-  "List the Balance Sheet report from Xero.",
+  "List the Balance Sheet report from Xero. Returns a report envelope: " +
+    "{report, date, updatedAt, columns, sections: [{title, rows, total}]}.",
   {
     date: z.string().optional().describe("Optional date in YYYY-MM-DD format"),
     periods: z.number().optional().describe("Optional number of periods to compare"),
@@ -30,20 +32,7 @@ const ListReportBalanceSheetTool = CreateXeroTool(
       };
     }
 
-    const balanceSheetReport = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Balance sheet Report: ${balanceSheetReport?.reportName ?? "Unnamed"}`,
-        },
-        {
-          type: "text" as const,
-          text: JSON.stringify(balanceSheetReport.rows, null, 2),
-        },
-      ],
-    };
+    return reportResponse(response.result);
   }
 );
 

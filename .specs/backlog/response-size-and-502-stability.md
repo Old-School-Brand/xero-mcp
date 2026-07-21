@@ -66,12 +66,22 @@ format/size issues. Verified measurements (live against the dev instance):
 - **Envelope inconsistency:** the 5 report tools never got the `{showing, rows}` envelope
   (ADR-0005 deferred it) — `list-trial-balance` returns 4 content blocks (3 prose lines + Xero's
   raw pretty-printed report tree). Tester asks for one envelope everywhere.
+  **Delivered by 007-response-shape**: all 5 report tools now return the structured report
+  envelope (`{report, date, updatedAt, columns, sections}`) via a single minified JSON block
+  (ADR-0006).
 - **Trial balance bloat:** every cell repeats the same account GUID in `attributes` — measured
   **64.4%** of the 441 KB payload (1,795 attribute blocks; 359 rows × 5 cells). A row-level
   transform (account ID once per row) cuts ~60% of the payload.
+  **Delivered by 007-response-shape**: `transformReport` hoists and deduplicates per-row
+  attributes into one object, and the `jsonResponse` replacer omits empty-string/null values
+  globally (ADR-0006).
 - **list-accounts:** 609 rows / ~265 KB, no pagination, no `activeOnly` filter (35 rows are
   ARCHIVED). Tester asks for field-trimming (`code, name, ID, type, status` cover most uses)
   and/or a `fields` param.
+  **`activeOnly` half delivered by 007-response-shape**: `list-accounts` now defaults to
+  `activeOnly=true` (Xero-side `Status=="ACTIVE"` filter), excluding the 35 archived rows by
+  default. The field-trimming / `fields`-param request stays **out of scope** (007's explicit
+  Non-Goal — no curated per-tool field lists) and remains open here if ever picked up.
 - **Sensitive fields for the trimming discussion:** `bankAccountNumber` has real values on the
   26 bank-type account rows; `list-organisation-details` emits PII-adjacent registry data
   (tax number, named contact, phones). Credential redaction (`aPIKey`) already shipped as a

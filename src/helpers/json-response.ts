@@ -9,9 +9,13 @@
 const REDACTED_KEYS = new Set(["aPIKey"]);
 
 export function jsonResponse(value: unknown) {
-  const text = JSON.stringify(value, (key, v: unknown) =>
-    REDACTED_KEYS.has(key) ? undefined : v,
-  );
+  const text = JSON.stringify(value, (key, v: unknown) => {
+    if (REDACTED_KEYS.has(key)) return undefined;
+    // Empty-value omission: "" and null carry no information and are dropped
+    // everywhere; 0 and false are real data and must always survive.
+    if (v === "" || v === null) return undefined;
+    return v;
+  });
   return { content: [{ type: "text" as const, text }] };
 }
 

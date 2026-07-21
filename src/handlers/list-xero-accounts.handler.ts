@@ -4,13 +4,18 @@ import { formatError } from "../helpers/format-error.js";
 import { Account } from "xero-node";
 import { getClientHeaders } from "../helpers/get-client-headers.js";
 
-async function listAccounts(): Promise<Account[]> {
+// Closed union, not `string` — the only pre-built clause callers may pass. This
+// makes it a compile-time error to thread unsanitized user input into the Xero
+// API's `where` filter (which does not distinguish it from a query expression).
+type AccountsWhereFilter = 'Status=="ACTIVE"';
+
+async function listAccounts(where?: AccountsWhereFilter): Promise<Account[]> {
   await xeroClient.authenticate();
 
   const response = await xeroClient.accountingApi.getAccounts(
     xeroClient.tenantId,
     undefined, // ifModifiedSince
-    undefined, // where
+    where,
     undefined, // order
     getClientHeaders(),
   );
@@ -21,12 +26,13 @@ async function listAccounts(): Promise<Account[]> {
 
 /**
  * List all accounts from Xero
+ * @param where Optional Xero API `where` filter clause, e.g. `Status=="ACTIVE"`
  */
-export async function listXeroAccounts(): Promise<
-  XeroClientResponse<Account[]>
-> {
+export async function listXeroAccounts(
+  where?: AccountsWhereFilter,
+): Promise<XeroClientResponse<Account[]>> {
   try {
-    const accounts = await listAccounts();
+    const accounts = await listAccounts(where);
 
     return {
       result: accounts,

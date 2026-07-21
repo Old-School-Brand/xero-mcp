@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { listXeroTrialBalance } from "../../handlers/list-xero-trial-balance.handler.js";
 import { CreateXeroTool } from "../../helpers/create-xero-tool.js";
-import { formatDate, formatDateTime } from "../../helpers/format-date.js";
+import { reportResponse } from "../../helpers/report-envelope.js";
 
 const ListTrialBalanceTool = CreateXeroTool(
   "list-trial-balance",
-  "Lists trial balance in Xero. This provides a snapshot of the general ledger, showing debit and credit balances for each account.",
+  "Lists trial balance in Xero. This provides a snapshot of the general ledger, showing debit " +
+    "and credit balances for each account. Returns a report envelope: " +
+    "{report, date, updatedAt, columns, sections: [{title, rows, total}]}.",
   {
     date: z.string().optional().describe("Optional date in YYYY-MM-DD format"),
     paymentsOnly: z.boolean().optional().describe("Optional flag to include only accounts with payments"),
@@ -23,28 +25,7 @@ const ListTrialBalanceTool = CreateXeroTool(
       };
     }
 
-   const trialBalanceReport = response.result;
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Trial Balance Report: ${trialBalanceReport?.reportName || "Unnamed"}`,
-        },
-        {
-          type: "text" as const,
-          text: `Date: ${formatDate(trialBalanceReport?.reportDate) || "Not specified"}`,
-        },
-        {
-          type: "text" as const,
-          text: `Updated At: ${formatDateTime(trialBalanceReport?.updatedDateUTC) || "Unknown"}`,
-        },
-        {
-          type: "text" as const,
-          text: JSON.stringify(trialBalanceReport.rows, null, 2),
-        },
-      ],
-    };
+    return reportResponse(response.result);
   },
 );
 
