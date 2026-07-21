@@ -8,7 +8,8 @@ Examples covered:
 
 Test plan:
   - test_noArgs_callsHandlerWithActiveOnlyWhereClause: default activeOnly passes the
-    Status=="ACTIVE" where clause
+    Status=="ACTIVE" where clause, and the response envelope's showing matches the
+    mock result length
   - test_activeOnlyFalse_callsHandlerWithUndefinedWhere: explicit activeOnly:false passes
     no where clause
 */
@@ -27,9 +28,15 @@ beforeEach(() => {
 
 describe("list-accounts tool — activeOnly", () => {
   it("test_noArgs_callsHandlerWithActiveOnlyWhereClause", async () => {
-    await ListAccountsTool().handler({} as never, {} as never);
+    const mockAccounts = [{ accountID: "1" }, { accountID: "2" }];
+    listXeroAccounts.mockResolvedValue({ result: mockAccounts, isError: false, error: null });
+
+    const result = await ListAccountsTool().handler({} as never, {} as never);
+    const content = result.content as { type: "text"; text: string }[];
 
     expect(listXeroAccounts).toHaveBeenCalledWith('Status=="ACTIVE"');
+    const parsed = JSON.parse(content[0].text) as { showing: number };
+    expect(parsed.showing).toBe(mockAccounts.length);
   });
 
   it("test_activeOnlyFalse_callsHandlerWithUndefinedWhere", async () => {

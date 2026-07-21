@@ -2,7 +2,7 @@
 
 **Layer:** backend
 **Status:** Ready for Review
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-21
 
 Ordered, file-level, full-tdd (test first per task, then implement to green). Each task references
 the design's `## Examples` numbers for its test cases.
