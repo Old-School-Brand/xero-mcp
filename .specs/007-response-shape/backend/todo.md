@@ -1,7 +1,7 @@
 # Todo: 007-response-shape
 
 **Layer:** backend
-**Status:** Ready for Review
+**Status:** Complete
 **Last updated:** 2026-07-21
 
 Ordered, file-level, full-tdd (test first per task, then implement to green). Each task references

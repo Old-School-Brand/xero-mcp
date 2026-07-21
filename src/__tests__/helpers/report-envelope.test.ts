@@ -365,11 +365,10 @@ describe("transformReport — unknown rowType", () => {
       ],
     };
 
-    expect(() => transformReport(report)).not.toThrow();
     const envelope = transformReport(report);
 
     expect(envelope.sections).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
 
     warnSpy.mockRestore();
   });
